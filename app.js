@@ -77,14 +77,30 @@ document.addEventListener('DOMContentLoaded', () => {
     // Function to show progress bar
     function showProgress() {
         progressContainer.style.display = 'block';
-        updateProgress(0);
+        // Add a small delay before starting the animation to ensure smooth transition
+        setTimeout(() => {
+            updateProgress(0);
+        }, 10);
     }
     
     // Function to hide progress bar
     function hideProgress() {
+        // Complete the progress to 100% before hiding
+        updateProgress(100);
+        
+        // Add a delay before hiding to show the completed progress
         setTimeout(() => {
-            progressContainer.style.display = 'none';
-        }, 500);
+            // Fade out effect
+            progressContainer.style.opacity = '0';
+            progressContainer.style.transition = 'opacity 0.5s ease';
+            
+            // After fade out, hide and reset
+            setTimeout(() => {
+                progressContainer.style.display = 'none';
+                progressContainer.style.opacity = '1';
+                progressContainer.style.transition = '';
+            }, 500);
+        }, 300);
     }
     
     // Function to simulate progress (since we don't have real-time progress from the API)
@@ -170,9 +186,6 @@ Your transformed prompt should be comprehensive but concise, and should signific
             clearInterval(progressInterval);
             
             if (response.ok) {
-                // Complete the progress bar to 100%
-                updateProgress(100);
-                
                 // Extract the optimized prompt from the response
                 const optimizedPrompt = data.choices[0].message.content;
                 optimizedPromptOutput.value = optimizedPrompt;
@@ -180,10 +193,8 @@ Your transformed prompt should be comprehensive but concise, and should signific
                 // Show success message
                 showSuccess('Prompt successfully transformed!');
                 
-                // Hide progress bar after a short delay
-                setTimeout(() => {
-                    hideProgress();
-                }, 500);
+                // Hide progress bar
+                hideProgress();
             } else {
                 // Handle API error
                 console.error('API Error:', data);
@@ -265,9 +276,6 @@ Your transformed prompt should be comprehensive but concise, and should signific
             clearInterval(progressInterval);
             
             if (response.ok) {
-                // Complete the progress bar to 100%
-                updateProgress(100);
-                
                 // Extract the answer from the response
                 const answer = data.choices[0].message.content;
                 answerOutput.textContent = answer;
@@ -278,10 +286,8 @@ Your transformed prompt should be comprehensive but concise, and should signific
                 // Show success message
                 showSuccess('Answer generated successfully!');
                 
-                // Hide progress bar after a short delay
-                setTimeout(() => {
-                    hideProgress();
-                }, 500);
+                // Hide progress bar
+                hideProgress();
             } else {
                 // Handle API error
                 console.error('API Error:', data);
