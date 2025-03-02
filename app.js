@@ -7,19 +7,25 @@ document.addEventListener('DOMContentLoaded', () => {
     const generateAnswerBtn = document.getElementById('generate-answer-btn');
     const answerOutput = document.getElementById('answer-output');
     const loadingSpinner = document.getElementById('loading-spinner');
+    const modelSelector = document.getElementById('model-selector');
     
     // API Configuration
     const API_URL = 'https://api.venice.ai/api/v1';
-    const MODEL_ID = 'llama-3.3-70b'; // Using Llama 3.3 70B as the transformer model
+    const TRANSFORMER_MODEL_ID = 'llama-3.3-70b'; // Model for transforming prompts
     
-    // You need to replace this with your actual API key
+    // Check for API key in different sources
     let API_KEY = '';
     
-    // Check if API key is stored in localStorage
-    if (localStorage.getItem('venice_api_key')) {
+    // First check if there's an environment variable (for Netlify deployment)
+    if (typeof VENICE_API_KEY !== 'undefined') {
+        API_KEY = VENICE_API_KEY;
+    } 
+    // Then check localStorage
+    else if (localStorage.getItem('venice_api_key')) {
         API_KEY = localStorage.getItem('venice_api_key');
-    } else {
-        // Prompt user for API key if not found
+    } 
+    // Finally, prompt user if no key is found
+    else {
         promptForApiKey();
     }
     
@@ -27,6 +33,28 @@ document.addEventListener('DOMContentLoaded', () => {
     transformBtn.addEventListener('click', transformPrompt);
     copyBtn.addEventListener('click', copyToClipboard);
     generateAnswerBtn.addEventListener('click', generateAnswer);
+    
+    // Initialize UI
+    initializeUI();
+    
+    // Function to initialize UI elements
+    function initializeUI() {
+        // Set the default model in the selector
+        modelSelector.value = TRANSFORMER_MODEL_ID;
+        
+        // Add animation to cards
+        document.querySelectorAll('.card').forEach(card => {
+            card.addEventListener('mouseenter', () => {
+                card.style.transform = 'translateY(-5px)';
+                card.style.boxShadow = '0 15px 35px var(--shadow-color)';
+            });
+            
+            card.addEventListener('mouseleave', () => {
+                card.style.transform = 'translateY(0)';
+                card.style.boxShadow = '0 10px 30px var(--shadow-color)';
+            });
+        });
+    }
     
     // Function to prompt user for API key
     function promptForApiKey() {
@@ -43,7 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const userPrompt = userPromptInput.value.trim();
         
         if (!userPrompt) {
-            alert('Please enter a prompt.');
+            showError('Please enter a prompt.');
             return;
         }
         
@@ -77,7 +105,7 @@ Your transformed prompt should be comprehensive but concise, and should signific
                     'Authorization': `Bearer ${API_KEY}`
                 },
                 body: JSON.stringify({
-                    model: MODEL_ID,
+                    model: TRANSFORMER_MODEL_ID,
                     messages: [
                         {
                             role: 'system',
@@ -98,14 +126,17 @@ Your transformed prompt should be comprehensive but concise, and should signific
                 // Extract the optimized prompt from the response
                 const optimizedPrompt = data.choices[0].message.content;
                 optimizedPromptOutput.value = optimizedPrompt;
+                
+                // Show success message
+                showSuccess('Prompt successfully transformed!');
             } else {
                 // Handle API error
                 console.error('API Error:', data);
-                alert(`Error: ${data.error || 'Failed to transform prompt'}`);
+                showError(`Error: ${data.error || 'Failed to transform prompt'}`);
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('An error occurred. Please try again.');
+            showError('An error occurred. Please try again.');
         } finally {
             // Hide loading spinner
             loadingSpinner.classList.remove('show');
@@ -138,9 +169,10 @@ Your transformed prompt should be comprehensive but concise, and should signific
     // Function to generate an answer using the optimized prompt
     async function generateAnswer() {
         const optimizedPrompt = optimizedPromptOutput.value.trim();
+        const selectedModel = modelSelector.value;
         
         if (!optimizedPrompt) {
-            alert('Please transform a prompt first.');
+            showError('Please transform a prompt first.');
             return;
         }
         
@@ -161,7 +193,7 @@ Your transformed prompt should be comprehensive but concise, and should signific
                     'Authorization': `Bearer ${API_KEY}`
                 },
                 body: JSON.stringify({
-                    model: MODEL_ID,
+                    model: selectedModel,
                     messages: [
                         {
                             role: 'user',
@@ -178,17 +210,63 @@ Your transformed prompt should be comprehensive but concise, and should signific
                 // Extract the answer from the response
                 const answer = data.choices[0].message.content;
                 answerOutput.textContent = answer;
+                
+                // Scroll to the answer
+                answerOutput.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                
+                // Show success message
+                showSuccess('Answer generated successfully!');
             } else {
                 // Handle API error
                 console.error('API Error:', data);
-                alert(`Error: ${data.error || 'Failed to generate answer'}`);
+                showError(`Error: ${data.error || 'Failed to generate answer'}`);
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('An error occurred. Please try again.');
+            showError('An error occurred. Please try again.');
         } finally {
             // Hide loading spinner
             loadingSpinner.classList.remove('show');
         }
+    }
+    
+    // Function to show success message
+    function showSuccess(message) {
+        const successMessage = document.createElement('div');
+        successMessage.className = 'success-message';
+        successMessage.textContent = message;
+        
+        // Find a good place to show the message
+        const container = document.querySelector('.actions');
+        container.appendChild(successMessage);
+        
+        // Show the message
+        successMessage.style.display = 'block';
+        
+        // Hide the message after 3 seconds
+        setTimeout(() => {
+            successMessage.style.display = 'none';
+            container.removeChild(successMessage);
+        }, 3000);
+    }
+    
+    // Function to show error message
+    function showError(message) {
+        const errorMessage = document.createElement('div');
+        errorMessage.className = 'error-message';
+        errorMessage.textContent = message;
+        
+        // Find a good place to show the message
+        const container = document.querySelector('.actions');
+        container.appendChild(errorMessage);
+        
+        // Show the message
+        errorMessage.style.display = 'block';
+        
+        // Hide the message after 3 seconds
+        setTimeout(() => {
+            errorMessage.style.display = 'none';
+            container.removeChild(errorMessage);
+        }, 3000);
     }
 }); 
