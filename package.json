@@ -1,0 +1,19 @@
+{
+  "name": "prompt-optimizer",
+  "version": "1.0.0",
+  "description": "A simple web application that transforms basic prompts into detailed, domain-specific prompts using the Venice.ai API.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "prompt",
+    "optimizer",
+    "llm",
+    "ai",
+    "venice.ai"
+  ],
+  "author": "",
+  "license": "MIT"
+} 
