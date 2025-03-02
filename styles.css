@@ -49,7 +49,7 @@ body {
 }
 
 .container {
-    max-width: 1100px;
+    max-width: 1200px;
     margin: 0 auto;
     padding: 30px 20px;
 }
@@ -120,6 +120,18 @@ main {
     gap: 40px;
 }
 
+/* Side-by-side prompt container */
+.prompt-container {
+    display: flex;
+    gap: 30px;
+    width: 100%;
+}
+
+.input-section, .output-section {
+    flex: 1;
+    min-width: 0; /* Prevents flex items from overflowing */
+}
+
 .card {
     background-color: var(--card-bg-color);
     border-radius: 16px;
@@ -143,7 +155,7 @@ label {
 
 textarea {
     width: 100%;
-    min-height: 140px;
+    min-height: 200px;
     padding: 16px;
     border: 2px solid var(--border-color);
     border-radius: 12px;
@@ -217,7 +229,7 @@ button {
 
 .optimized-prompt-container {
     position: relative;
-    margin-bottom: 30px;
+    margin-bottom: 10px;
 }
 
 .optimized-prompt-container h2 {
@@ -232,8 +244,12 @@ button {
     z-index: 10;
 }
 
+.answer-section {
+    width: 100%;
+}
+
 .model-selection {
-    margin: 25px 0;
+    margin: 0 0 25px 0;
     padding: 20px;
     background-color: rgba(42, 100, 150, 0.05);
     border-radius: 12px;
@@ -288,40 +304,35 @@ select:focus {
     line-height: 1.6;
 }
 
-.loading-spinner {
+/* Progress bar styles */
+.progress-container {
     display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
     width: 100%;
+    margin: 20px 0;
+    text-align: center;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 10px;
+    background-color: var(--border-color);
+    border-radius: 5px;
+    overflow: hidden;
+    margin-bottom: 10px;
+}
+
+.progress-fill {
     height: 100%;
-    background-color: rgba(255, 255, 255, 0.9);
-    z-index: 1000;
-    justify-content: center;
-    align-items: center;
-    flex-direction: column;
-    backdrop-filter: blur(5px);
+    width: 0%;
+    background-color: var(--primary-color);
+    border-radius: 5px;
+    transition: width 0.3s ease;
 }
 
-.spinner {
-    width: 60px;
-    height: 60px;
-    border: 5px solid rgba(42, 100, 150, 0.2);
-    border-top: 5px solid var(--primary-color);
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-    margin-bottom: 20px;
-}
-
-.loading-spinner p {
-    font-size: 1.1rem;
+.progress-text {
+    font-size: 0.9rem;
     color: var(--primary-dark);
     font-weight: 600;
-}
-
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
 }
 
 footer {
@@ -344,6 +355,16 @@ footer a:hover {
 }
 
 /* Responsive adjustments */
+@media (max-width: 900px) {
+    .prompt-container {
+        flex-direction: column;
+    }
+    
+    .input-section, .output-section {
+        width: 100%;
+    }
+}
+
 @media (max-width: 768px) {
     .container {
         padding: 20px 15px;
@@ -358,7 +379,7 @@ footer a:hover {
     }
     
     textarea {
-        min-height: 120px;
+        min-height: 150px;
     }
     
     .primary-btn, .secondary-btn {

@@ -6,7 +6,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const copyBtn = document.getElementById('copy-btn');
     const generateAnswerBtn = document.getElementById('generate-answer-btn');
     const answerOutput = document.getElementById('answer-output');
-    const loadingSpinner = document.getElementById('loading-spinner');
+    const progressContainer = document.getElementById('progress-container');
+    const progressFill = document.getElementById('progress-fill');
+    const progressText = document.getElementById('progress-text');
     const modelSelector = document.getElementById('model-selector');
     
     // API Configuration
@@ -66,6 +68,48 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     
+    // Function to update progress bar
+    function updateProgress(percent) {
+        progressFill.style.width = `${percent}%`;
+        progressText.textContent = `Processing: ${percent}%`;
+    }
+    
+    // Function to show progress bar
+    function showProgress() {
+        progressContainer.style.display = 'block';
+        updateProgress(0);
+    }
+    
+    // Function to hide progress bar
+    function hideProgress() {
+        setTimeout(() => {
+            progressContainer.style.display = 'none';
+        }, 500);
+    }
+    
+    // Function to simulate progress (since we don't have real-time progress from the API)
+    function simulateProgress(duration) {
+        let progress = 0;
+        const interval = 50; // Update every 50ms
+        const increment = 100 / (duration / interval);
+        
+        showProgress();
+        
+        const progressInterval = setInterval(() => {
+            progress += increment;
+            
+            // Cap at 90% until we get the actual response
+            if (progress >= 90) {
+                progress = 90;
+                clearInterval(progressInterval);
+            }
+            
+            updateProgress(Math.round(progress));
+        }, interval);
+        
+        return progressInterval;
+    }
+    
     // Function to transform the user prompt
     async function transformPrompt() {
         const userPrompt = userPromptInput.value.trim();
@@ -80,8 +124,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!API_KEY) return;
         }
         
-        // Show loading spinner
-        loadingSpinner.classList.add('show');
+        // Show progress bar and start simulation
+        const progressInterval = simulateProgress(3000); // Simulate 3 seconds
         
         try {
             // Create the system message for the transformer LLM
@@ -122,24 +166,35 @@ Your transformed prompt should be comprehensive but concise, and should signific
             
             const data = await response.json();
             
+            // Clear the progress simulation
+            clearInterval(progressInterval);
+            
             if (response.ok) {
+                // Complete the progress bar to 100%
+                updateProgress(100);
+                
                 // Extract the optimized prompt from the response
                 const optimizedPrompt = data.choices[0].message.content;
                 optimizedPromptOutput.value = optimizedPrompt;
                 
                 // Show success message
                 showSuccess('Prompt successfully transformed!');
+                
+                // Hide progress bar after a short delay
+                setTimeout(() => {
+                    hideProgress();
+                }, 500);
             } else {
                 // Handle API error
                 console.error('API Error:', data);
+                hideProgress();
                 showError(`Error: ${data.error || 'Failed to transform prompt'}`);
             }
         } catch (error) {
             console.error('Error:', error);
+            clearInterval(progressInterval);
+            hideProgress();
             showError('An error occurred. Please try again.');
-        } finally {
-            // Hide loading spinner
-            loadingSpinner.classList.remove('show');
         }
     }
     
@@ -172,7 +227,7 @@ Your transformed prompt should be comprehensive but concise, and should signific
         const selectedModel = modelSelector.value;
         
         if (!optimizedPrompt) {
-            showError('Please transform a prompt first.');
+            showError('Please transform a prompt first or enter your own prompt.');
             return;
         }
         
@@ -181,8 +236,8 @@ Your transformed prompt should be comprehensive but concise, and should signific
             if (!API_KEY) return;
         }
         
-        // Show loading spinner
-        loadingSpinner.classList.add('show');
+        // Show progress bar and start simulation
+        const progressInterval = simulateProgress(5000); // Simulate 5 seconds for answer generation
         
         try {
             // Call the Venice.ai API to generate an answer
@@ -206,7 +261,13 @@ Your transformed prompt should be comprehensive but concise, and should signific
             
             const data = await response.json();
             
+            // Clear the progress simulation
+            clearInterval(progressInterval);
+            
             if (response.ok) {
+                // Complete the progress bar to 100%
+                updateProgress(100);
+                
                 // Extract the answer from the response
                 const answer = data.choices[0].message.content;
                 answerOutput.textContent = answer;
@@ -216,17 +277,22 @@ Your transformed prompt should be comprehensive but concise, and should signific
                 
                 // Show success message
                 showSuccess('Answer generated successfully!');
+                
+                // Hide progress bar after a short delay
+                setTimeout(() => {
+                    hideProgress();
+                }, 500);
             } else {
                 // Handle API error
                 console.error('API Error:', data);
+                hideProgress();
                 showError(`Error: ${data.error || 'Failed to generate answer'}`);
             }
         } catch (error) {
             console.error('Error:', error);
+            clearInterval(progressInterval);
+            hideProgress();
             showError('An error occurred. Please try again.');
-        } finally {
-            // Hide loading spinner
-            loadingSpinner.classList.remove('show');
         }
     }
     
