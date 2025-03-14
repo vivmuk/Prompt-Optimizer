@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const progressContainer = document.getElementById('progress-container');
     const progressFill = document.getElementById('progress-fill');
     const progressText = document.getElementById('progress-text');
-    const modelSelector = document.getElementById('model-selector');
+    const modelSelector = document.getElementById('model');
     
     // API Configuration
     const API_URL = 'https://api.venice.ai/api/v1';
