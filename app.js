@@ -40,22 +40,175 @@ document.addEventListener('DOMContentLoaded', () => {
     initializeUI();
     
     // Function to initialize UI elements
-    function initializeUI() {
-        // Set the default model in the selector
-        modelSelector.value = TRANSFORMER_MODEL_ID;
-        
-        // Add animation to cards
-        document.querySelectorAll('.card').forEach(card => {
-            card.addEventListener('mouseenter', () => {
-                card.style.transform = 'translateY(-5px)';
-                card.style.boxShadow = '0 15px 35px var(--shadow-color)';
-            });
+    async function initializeUI() {
+        try {
+            // Fetch available models
+            const models = await fetchModels();
+            updateModelSelector(models);
             
-            card.addEventListener('mouseleave', () => {
-                card.style.transform = 'translateY(0)';
-                card.style.boxShadow = '0 10px 30px var(--shadow-color)';
+            // Add animation to cards
+            document.querySelectorAll('.card').forEach(card => {
+                card.addEventListener('mouseenter', () => {
+                    card.style.transform = 'translateY(-5px)';
+                    card.style.boxShadow = '0 15px 35px var(--shadow-color)';
+                });
+                
+                card.addEventListener('mouseleave', () => {
+                    card.style.transform = 'translateY(0)';
+                    card.style.boxShadow = '0 10px 30px var(--shadow-color)';
+                });
             });
+        } catch (error) {
+            console.error('Error initializing UI:', error);
+            showError('Failed to fetch available models. Please check your API key.');
+        }
+    }
+    
+    // Function to fetch available models
+    async function fetchModels() {
+        const response = await fetch(`${API_URL}/models`, {
+            headers: {
+                'Authorization': `Bearer ${API_KEY}`
+            }
         });
+        
+        if (!response.ok) {
+            throw new Error('Failed to fetch models');
+        }
+        
+        const data = await response.json();
+        return data.data;
+    }
+    
+    // Function to update model selector with fetched models
+    function updateModelSelector(models) {
+        // Clear existing options
+        modelSelector.innerHTML = '';
+        
+        // Sort models by creation date (newest first)
+        models.sort((a, b) => b.created - a.created);
+        
+        models.forEach(model => {
+            const option = document.createElement('option');
+            option.value = model.id;
+            
+            // Create capability icons
+            const capabilities = [];
+            const specs = model.model_spec.capabilities;
+            
+            // Add icons based on capabilities
+            if (specs.optimizedForCode) capabilities.push('💻');
+            if (specs.supportsVision) capabilities.push('��️');
+            if (specs.supportsFunctionCalling) capabilities.push('🔧');
+            if (specs.supportsResponseSchema) capabilities.push('📋');
+            if (specs.supportsWebSearch) capabilities.push('🔍');
+            if (specs.supportsReasoning) capabilities.push('🧠');
+            
+            // Add model traits
+            const traits = model.model_spec.traits || [];
+            const traitIcons = traits.map(trait => {
+                switch(trait) {
+                    case 'fastest': return '⚡';
+                    case 'most_uncensored': return '🔓';
+                    case 'most_intelligent': return '🎯';
+                    case 'default_code': return '📝';
+                    case 'default_reasoning': return '🤔';
+                    case 'default_vision': return '📸';
+                    case 'function_calling_default': return '⚙️';
+                    case 'default': return '✨';
+                    default: return '';
+                }
+            }).filter(icon => icon);
+            
+            // Add context window size indicator
+            const contextTokens = model.model_spec.availableContextTokens;
+            const contextIcon = contextTokens >= 100000 ? '🌟' : 
+                              contextTokens >= 50000 ? '⭐' : '💫';
+            
+            const icons = [...capabilities, ...traitIcons, contextIcon].join(' ');
+            
+            // Create tooltip content
+            const tooltipContent = [
+                `Context: ${(contextTokens/1000).toFixed(1)}K tokens`,
+                specs.optimizedForCode ? 'Code Optimized' : '',
+                specs.supportsVision ? 'Vision Capable' : '',
+                specs.supportsFunctionCalling ? 'Function Calling' : '',
+                specs.supportsResponseSchema ? 'Schema Support' : '',
+                specs.supportsWebSearch ? 'Web Search' : '',
+                specs.supportsReasoning ? 'Advanced Reasoning' : '',
+                ...traits.map(t => t.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()))
+            ].filter(Boolean).join(' • ');
+            
+            option.setAttribute('data-tooltip', tooltipContent);
+            option.textContent = `${model.id} ${icons}`;
+            
+            // Set default model for transformation
+            if (model.id === TRANSFORMER_MODEL_ID) {
+                option.selected = true;
+            }
+            
+            modelSelector.appendChild(option);
+        });
+    }
+    
+    // Function to format markdown text with better formatting
+    function formatMarkdown(text) {
+        // Clean up the text first
+        text = text.trim();
+        
+        // Replace markdown headers with proper hierarchy
+        text = text.replace(/^(#{1,6})\s+(.+)$/gm, (match, hashes, content) => {
+            const level = hashes.length;
+            return `<h${level} class="markdown-header">${content}</h${level}>`;
+        });
+        
+        // Replace bold text
+        text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+        
+        // Replace italic text
+        text = text.replace(/\*(.+?)\*/g, '<em>$1</em>');
+        
+        // Replace inline code with syntax highlighting
+        text = text.replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>');
+        
+        // Replace code blocks with syntax highlighting
+        text = text.replace(/```(\w*)\n([\s\S]+?)```/g, (match, lang, code) => {
+            const language = lang || 'plaintext';
+            return `<pre><code class="language-${language}">${code.trim()}</code></pre>`;
+        });
+        
+        // Replace bullet points with proper nesting
+        text = text.replace(/^(\s*)-\s+(.+)$/gm, (match, spaces, content) => {
+            const indent = spaces.length;
+            return `<li class="indent-${indent}">${content}</li>`;
+        });
+        text = text.replace(/(<li[^>]*>[\s\S]*?<\/li>)/g, '<ul>$1</ul>');
+        
+        // Replace numbered lists with proper nesting
+        text = text.replace(/^(\s*)\d+\.\s+(.+)$/gm, (match, spaces, content) => {
+            const indent = spaces.length;
+            return `<li class="indent-${indent}">${content}</li>`;
+        });
+        text = text.replace(/(<li[^>]*>[\s\S]*?<\/li>)/g, '<ol>$1</ol>');
+        
+        // Replace links with target="_blank" and rel="noopener"
+        text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, 
+            '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+        
+        // Replace horizontal rules
+        text = text.replace(/^---+$/gm, '<hr class="markdown-hr">');
+        
+        // Replace blockquotes
+        text = text.replace(/^>\s+(.+)$/gm, '<blockquote>$1</blockquote>');
+        
+        // Add paragraphs to text blocks
+        text = text.replace(/^(?!<[a-z])[^<\n].+$/gm, '<p>$&</p>');
+        
+        // Clean up empty lines and multiple spaces
+        text = text.replace(/\n\s*\n/g, '\n\n');
+        text = text.replace(/ {2,}/g, ' ');
+        
+        return text;
     }
     
     // Function to prompt user for API key
@@ -248,10 +401,9 @@ Your transformed prompt should be comprehensive but concise, and should signific
         }
         
         // Show progress bar and start simulation
-        const progressInterval = simulateProgress(5000); // Simulate 5 seconds for answer generation
+        const progressInterval = simulateProgress(5000);
         
         try {
-            // Call the Venice.ai API to generate an answer
             const response = await fetch(`${API_URL}/chat/completions`, {
                 method: 'POST',
                 headers: {
@@ -272,24 +424,17 @@ Your transformed prompt should be comprehensive but concise, and should signific
             
             const data = await response.json();
             
-            // Clear the progress simulation
             clearInterval(progressInterval);
             
             if (response.ok) {
-                // Extract the answer from the response
                 const answer = data.choices[0].message.content;
-                answerOutput.textContent = answer;
+                // Format markdown in the answer
+                answerOutput.innerHTML = formatMarkdown(answer);
                 
-                // Scroll to the answer
                 answerOutput.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                
-                // Show success message
                 showSuccess('Answer generated successfully!');
-                
-                // Hide progress bar
                 hideProgress();
             } else {
-                // Handle API error
                 console.error('API Error:', data);
                 hideProgress();
                 showError(`Error: ${data.error || 'Failed to generate answer'}`);
