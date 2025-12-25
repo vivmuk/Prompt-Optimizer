@@ -110,6 +110,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         optimizeBtn.textContent = 'Transforming...';
         optimizeBtn.disabled = true;
+        optimizeBtn.classList.add('thinking'); // Start Animation
 
         // Context Engineering System Prompt
         let systemPrompt = `You are a world-class prompt engineer. Transform this prompt for ${provider.toUpperCase()}.`;
@@ -134,121 +135,130 @@ document.addEventListener('DOMContentLoaded', () => {
 
         systemPrompt += `\n\nReturn ONLY the optimized prompt.`;
 
-        const response = await callApi('/api/chat', {
-            model: "llama-3.3-70b",
-            messages: [
-                { role: "system", content: systemPrompt },
-                { role: "user", content: `Optimize this prompt: "${prompt}"` }
-            ]
-        });
-
-        if (response && response.choices) {
-            optimizedOutput.innerText = response.choices[0].message.content;
-            optimizerResult.style.display = 'block';
-            showToast('Prompt Optimized!');
-        }
-
-        optimizeBtn.textContent = 'TRANSFORM ✨';
-        optimizeBtn.disabled = false;
     });
 
-    generateAnswerBtn.addEventListener('click', async () => {
-        const optimizedPrompt = optimizedOutput.innerText;
-        const selectedModel = modelSelect.value;
-
-        generateAnswerBtn.textContent = 'Generating...';
-        generatedAnswer.style.display = 'block';
-        generatedAnswer.innerText = 'Thinking...';
-
-        const response = await callApi('/api/chat', {
-            model: selectedModel,
-            messages: [{ role: "user", content: optimizedPrompt }]
-        });
-
-        if (response && response.choices) {
-            generatedAnswer.innerText = response.choices[0].message.content;
-            showToast('Answer Generated!');
-        }
-        generateAnswerBtn.textContent = 'Generate Answer with AI';
+    const response = await callApi('/api/chat', {
+        model: "llama-3.3-70b",
+        venice_parameters: {
+            include_venice_system_prompt: true,
+            enable_web_search: "off"
+        },
+        messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: `Optimize this prompt: "${prompt}"` }
+        ]
     });
 
-    // --- FEATURE 2: AGENT BUILDER ---
-    buildAgentBtn.addEventListener('click', async () => {
-        const platform = agentPlatformSelect.value;
-        const description = agentDescriptionInput.value.trim();
+    if (response && response.choices) {
+        optimizedOutput.innerText = response.choices[0].message.content;
+        optimizerResult.style.display = 'block';
+        showToast('Prompt Optimized!');
+    }
 
-        if (!description) return showToast('Please describe your agent.');
+    optimizeBtn.textContent = 'TRANSFORM ✨';
+    optimizeBtn.disabled = false;
+    optimizeBtn.classList.remove('thinking'); // Stop Animation
+});
 
-        buildAgentBtn.textContent = 'Building...';
-        buildAgentBtn.disabled = true;
+generateAnswerBtn.addEventListener('click', async () => {
+    const optimizedPrompt = optimizedOutput.innerText;
+    const selectedModel = modelSelect.value;
 
-        let systemPrompt = `You are an expert AI Architect. Create system instructions for an AI agent.`
+    generateAnswerBtn.textContent = 'Generating...';
+    generatedAnswer.style.display = 'block';
+    generatedAnswer.innerText = 'Thinking...';
 
-        if (platform === 'copilot') systemPrompt += ` Target: Microsoft Copilot Studio. Use clear, actionable language.`;
-        else if (platform === 'gemini') systemPrompt += ` Target: Google Gemini Gems. Use PTCF Framework.`;
-        else if (platform === 'chatgpt') systemPrompt += ` Target: ChatGPT Custom GPTs. Use Markdown & explicit rules.`;
-
-        const response = await callApi('/api/chat', {
-            model: "llama-3.3-70b",
-            messages: [
-                { role: "system", content: systemPrompt },
-                { role: "user", content: `Agent Goal: "${description}"` }
-            ]
-        });
-
-        if (response && response.choices) {
-            agentOutput.innerText = response.choices[0].message.content;
-            agentResult.style.display = 'block';
-            showToast('Instructions Built!');
-        }
-
-        buildAgentBtn.textContent = 'BUILD INSTRUCTIONS 🛠️';
-        buildAgentBtn.disabled = false;
+    const response = await callApi('/api/chat', {
+        model: selectedModel,
+        venice_parameters: { include_venice_system_prompt: true },
+        messages: [{ role: "user", content: optimizedPrompt }]
     });
 
-    // --- FEATURE 3: SKILLS BUILDER (UPDATED) ---
-    fetchVeniceModelsBtn.addEventListener('click', async () => {
-        fetchVeniceModelsBtn.textContent = 'Loading...';
-        try {
-            try {
-                const response = await fetch('/api/models');
-                if (response.status === 401) {
-                    showToast('Error: Unauthorized. Check VENICE_API_KEY in .env');
-                    veniceStatus.textContent = 'Auth Failed ❌';
-                    return;
-                }
-                const data = await response.json();
-                if (data && data.data) {
-                    // Parse rich model data (ID, context, traits)
-                    loadedModels = data.data.map(m => ({
-                        id: m.id,
-                        context: m.model_spec?.availableContextTokens || 'N/A',
-                        traits: m.model_spec?.traits || []
-                    }));
-                    veniceStatus.textContent = `Models loaded: ${loadedModels.length}`;
-                    showToast(`Loaded ${loadedModels.length} models from Venice!`);
-                    console.log('Venice Models:', loadedModels);
-                }
-            } catch (e) {
-                console.error(e);
-                showToast('Failed to load models.');
-            }
-            fetchVeniceModelsBtn.textContent = 'Refresh Venice Models';
-        });
+    if (response && response.choices) {
+        generatedAnswer.innerText = response.choices[0].message.content;
+        showToast('Answer Generated!');
+    }
+    generateAnswerBtn.textContent = 'Generate Answer with AI';
+});
 
-    buildSkillBtn.addEventListener('click', async () => {
-        const name = skillNameInput.value.trim();
-        const description = skillDescriptionInput.value.trim();
+// --- FEATURE 2: AGENT BUILDER ---
+buildAgentBtn.addEventListener('click', async () => {
+    const platform = agentPlatformSelect.value;
+    const description = agentDescriptionInput.value.trim();
 
-        if (!name || !description) return showToast('Details required.');
-        if (loadedModels.length === 0) await fetchVeniceModelsBtn.click();
+    if (!description) return showToast('Please describe your agent.');
 
-        skillResult.style.display = 'none';
-        skillLoader.style.display = 'block';
+    buildAgentBtn.textContent = 'Building...';
+    buildAgentBtn.disabled = true;
+    buildAgentBtn.classList.add('thinking');
 
-        // Timeout for "Waiting Graphics" effect
-        setTimeout(async () => {
-            const systemPrompt = `You are a Python Developer. Create a FULL SKILL PACKAGE for a tool named "${name}".
+    let systemPrompt = `You are an expert AI Architect. Create system instructions for an AI agent.`
+
+    if (platform === 'copilot') systemPrompt += ` Target: Microsoft Copilot Studio. Use clear, actionable language.`;
+    else if (platform === 'gemini') systemPrompt += ` Target: Google Gemini Gems. Use PTCF Framework.`;
+    else if (platform === 'chatgpt') systemPrompt += ` Target: ChatGPT Custom GPTs. Use Markdown & explicit rules.`;
+
+    const response = await callApi('/api/chat', {
+        model: "llama-3.3-70b",
+        messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: `Agent Goal: "${description}"` }
+        ]
+    });
+
+    if (response && response.choices) {
+        agentOutput.innerText = response.choices[0].message.content;
+        agentResult.style.display = 'block';
+        showToast('Instructions Built!');
+    }
+
+    buildAgentBtn.textContent = 'BUILD INSTRUCTIONS 🛠️';
+    buildAgentBtn.disabled = false;
+    buildAgentBtn.classList.remove('thinking');
+});
+
+// --- FEATURE 3: SKILLS BUILDER (UPDATED) ---
+fetchVeniceModelsBtn.addEventListener('click', async () => {
+    fetchVeniceModelsBtn.textContent = 'Loading...';
+    try {
+        const response = await fetch('/api/models');
+        if (response.status === 401) {
+            showToast('Error: Unauthorized. Check VENICE_API_KEY in .env');
+            veniceStatus.textContent = 'Auth Failed ❌';
+            return;
+        }
+        const data = await response.json();
+        if (data && data.data) {
+            // Parse rich model data (ID, context, traits)
+            loadedModels = data.data.map(m => ({
+                id: m.id,
+                context: m.model_spec?.availableContextTokens || 'N/A',
+                traits: m.model_spec?.traits || []
+            }));
+            veniceStatus.textContent = `Models loaded: ${loadedModels.length}`;
+            showToast(`Loaded ${loadedModels.length} models from Venice!`);
+            console.log('Venice Models:', loadedModels);
+        }
+    } catch (e) {
+        console.error(e);
+        showToast('Failed to load models.');
+    }
+    fetchVeniceModelsBtn.textContent = 'Refresh Venice Models';
+});
+
+buildSkillBtn.addEventListener('click', async () => {
+    const name = skillNameInput.value.trim();
+    const description = skillDescriptionInput.value.trim();
+
+    if (!name || !description) return showToast('Details required.');
+    if (loadedModels.length === 0) await fetchVeniceModelsBtn.click();
+
+    skillResult.style.display = 'none';
+    skillLoader.style.display = 'block';
+
+    // Timeout for "Waiting Graphics" effect
+    setTimeout(async () => {
+        const systemPrompt = `You are a Python Developer. Create a FULL SKILL PACKAGE for a tool named "${name}".
              
              Context:
              - Description: "${description}"
@@ -264,26 +274,27 @@ document.addEventListener('DOMContentLoaded', () => {
              
              Wrap the whole response in a JSON code block.`;
 
-            const response = await callApi('/api/chat', {
-                model: "llama-3.3-70b",
-                messages: [
-                    { role: "system", content: systemPrompt },
-                    { role: "user", content: "Generate the skill package." }
-                ]
-            });
+        const response = await callApi('/api/chat', {
+            model: "llama-3.3-70b",
+            venice_parameters: { include_venice_system_prompt: true },
+            messages: [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: "Generate the skill package." }
+            ]
+        });
 
-            skillLoader.style.display = 'none';
+        skillLoader.style.display = 'none';
 
-            if (response && response.choices) {
-                let content = response.choices[0].message.content;
-                // Basic clean up to try and parse JSON if wrapped in markdown
-                content = content.replace(/```json/g, '').replace(/```/g, '').trim();
+        if (response && response.choices) {
+            let content = response.choices[0].message.content;
+            // Basic clean up to try and parse JSON if wrapped in markdown
+            content = content.replace(/```json/g, '').replace(/```/g, '').trim();
 
-                try {
-                    const skillData = JSON.parse(content);
-                    currentSkillData = skillData;
+            try {
+                const skillData = JSON.parse(content);
+                currentSkillData = skillData;
 
-                    const display = `
+                const display = `
 === tool.py ===
 ${skillData.tool_code}
 
@@ -293,32 +304,32 @@ ${skillData.requirements}
 === README.md ===
 ${skillData.readme}
                     `;
-                    skillOutput.innerText = display;
-                    skillResult.style.display = 'block';
-                    showToast('Skill Package Generated!');
-                } catch (e) {
-                    skillOutput.innerText = content; // Fallback to raw text
-                    currentSkillData = { raw: content };
-                    skillResult.style.display = 'block';
-                    showToast('Skill Generated (Raw Format)');
-                }
+                skillOutput.innerText = display;
+                skillResult.style.display = 'block';
+                showToast('Skill Package Generated!');
+            } catch (e) {
+                skillOutput.innerText = content; // Fallback to raw text
+                currentSkillData = { raw: content };
+                skillResult.style.display = 'block';
+                showToast('Skill Generated (Raw Format)');
             }
-        }, 1500);
-    });
-
-    downloadSkillBtn.addEventListener('click', () => {
-        if (!currentSkillData) return;
-
-        let fileContent = "";
-        if (currentSkillData.raw) {
-            fileContent = currentSkillData.raw;
-        } else {
-            fileContent = `SKILL PACKAGE: ${skillNameInput.value}\n\n` +
-                `--- tool.py ---\n${currentSkillData.tool_code}\n\n` +
-                `--- requirements.txt ---\n${currentSkillData.requirements}\n\n` +
-                `--- README.md ---\n${currentSkillData.readme}\n`;
         }
+    }, 1500);
+});
 
-        downloadMockZip(skillNameInput.value || 'skill', fileContent);
-    });
+downloadSkillBtn.addEventListener('click', () => {
+    if (!currentSkillData) return;
+
+    let fileContent = "";
+    if (currentSkillData.raw) {
+        fileContent = currentSkillData.raw;
+    } else {
+        fileContent = `SKILL PACKAGE: ${skillNameInput.value}\n\n` +
+            `--- tool.py ---\n${currentSkillData.tool_code}\n\n` +
+            `--- requirements.txt ---\n${currentSkillData.requirements}\n\n` +
+            `--- README.md ---\n${currentSkillData.readme}\n`;
+    }
+
+    downloadMockZip(skillNameInput.value || 'skill', fileContent);
+});
 });
