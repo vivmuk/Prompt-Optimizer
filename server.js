@@ -22,7 +22,11 @@ app.post('/api/chat', async (req, res) => {
             return res.status(500).json({ error: 'Server configuration error: API key missing' });
         }
         // Sanitize key: remove quotes and whitespace
-        apiKey = apiKey.replace(/^"|"$/g, '').trim();
+        apiKey = apiKey.replace(/^['"]|['"]$/g, '').trim();
+
+        console.log(`[DEBUG] API Key Length: ${apiKey.length}`);
+        console.log(`[DEBUG] API Key Start: ${apiKey.substring(0, 4)}...`);
+        console.log(`[DEBUG] API Key End: ...${apiKey.substring(apiKey.length - 4)}`);
 
         const response = await fetch('https://api.venice.ai/api/v1/chat/completions', {
             method: 'POST',
