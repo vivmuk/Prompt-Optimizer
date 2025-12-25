@@ -210,19 +210,31 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchVeniceModelsBtn.addEventListener('click', async () => {
         fetchVeniceModelsBtn.textContent = 'Loading...';
         try {
-            const response = await fetch('/api/models');
-            const data = await response.json();
-            if (data && data.data) {
-                loadedModels = data.data.map(m => m.id);
-                veniceStatus.textContent = `Models loaded: ${loadedModels.length}`;
-                showToast(`Loaded ${loadedModels.length} models!`);
+            try {
+                const response = await fetch('/api/models');
+                if (response.status === 401) {
+                    showToast('Error: Unauthorized. Check VENICE_API_KEY in .env');
+                    veniceStatus.textContent = 'Auth Failed ❌';
+                    return;
+                }
+                const data = await response.json();
+                if (data && data.data) {
+                    // Parse rich model data (ID, context, traits)
+                    loadedModels = data.data.map(m => ({
+                        id: m.id,
+                        context: m.model_spec?.availableContextTokens || 'N/A',
+                        traits: m.model_spec?.traits || []
+                    }));
+                    veniceStatus.textContent = `Models loaded: ${loadedModels.length}`;
+                    showToast(`Loaded ${loadedModels.length} models from Venice!`);
+                    console.log('Venice Models:', loadedModels);
+                }
+            } catch (e) {
+                console.error(e);
+                showToast('Failed to load models.');
             }
-        } catch (e) {
-            console.error(e);
-            showToast('Failed to load models.');
-        }
-        fetchVeniceModelsBtn.textContent = 'Refresh Venice Models';
-    });
+            fetchVeniceModelsBtn.textContent = 'Refresh Venice Models';
+        });
 
     buildSkillBtn.addEventListener('click', async () => {
         const name = skillNameInput.value.trim();
@@ -240,7 +252,9 @@ document.addEventListener('DOMContentLoaded', () => {
              
              Context:
              - Description: "${description}"
-             - Available Models: ${loadedModels.slice(0, 3).join(', ')}...
+             Context:
+             - Description: "${description}"
+             - Available Models: ${loadedModels.slice(0, 5).map(m => m.id).join(', ')}...
              
              Output Format:
              Return a JSON object with 3 keys:
