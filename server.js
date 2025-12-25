@@ -1,7 +1,7 @@
 const express = require('express');
 const path = require('path');
 const cors = require('cors'); // Ensure you install this: npm install cors
-const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
+const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
 require('dotenv').config();
 
 const app = express();
@@ -16,10 +16,13 @@ app.use(express.static(path.join(__dirname, '.')));
 // Generic proxy for Venice API chat completions
 app.post('/api/chat', async (req, res) => {
     try {
-        const apiKey = process.env.VENICE_API_KEY;
+        let apiKey = process.env.VENICE_API_KEY;
         if (!apiKey) {
+            console.error('API Error: VENICE_API_KEY is missing in .env');
             return res.status(500).json({ error: 'Server configuration error: API key missing' });
         }
+        // Sanitize key: remove quotes and whitespace
+        apiKey = apiKey.replace(/^"|"$/g, '').trim();
 
         const response = await fetch('https://api.venice.ai/api/v1/chat/completions', {
             method: 'POST',
@@ -31,7 +34,7 @@ app.post('/api/chat', async (req, res) => {
         });
 
         const data = await response.json();
-        
+
         if (!response.ok) {
             return res.status(response.status).json(data);
         }
@@ -46,10 +49,13 @@ app.post('/api/chat', async (req, res) => {
 // Endpoint to list available models from Venice
 app.get('/api/models', async (req, res) => {
     try {
-        const apiKey = process.env.VENICE_API_KEY;
+        let apiKey = process.env.VENICE_API_KEY;
         if (!apiKey) {
+            console.error('API Error: VENICE_API_KEY is missing in .env');
             return res.status(500).json({ error: 'Server configuration error: API key missing' });
         }
+        // Sanitize key: remove quotes and whitespace
+        apiKey = apiKey.replace(/^"|"$/g, '').trim();
 
         const response = await fetch('https://api.venice.ai/api/v1/models', {
             method: 'GET',
@@ -59,7 +65,7 @@ app.get('/api/models', async (req, res) => {
         });
 
         const data = await response.json();
-        
+
         if (!response.ok) {
             return res.status(response.status).json(data);
         }
