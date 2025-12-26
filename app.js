@@ -280,8 +280,6 @@ document.addEventListener('DOMContentLoaded', () => {
              
              Context:
              - Description: "${description}"
-             Context:
-             - Description: "${description}"
              - Available Models: ${loadedModels.slice(0, 5).map(m => m.id).join(', ')}...
              
              Output Format:
