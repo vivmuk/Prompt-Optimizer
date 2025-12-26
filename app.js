@@ -225,23 +225,42 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (response && response.choices) {
             let content = response.choices[0].message.content;
-            content = content.replace(/```json/g, '').replace(/```/g, '').trim();
 
-            try {
-                const agentData = JSON.parse(content);
+            // Robust JSON extraction: Find the first '{' and the last '}'
+            const jsonStart = content.indexOf('{');
+            const jsonEnd = content.lastIndexOf('}');
 
-                // Populate UI
+            let agentData = null;
+
+            if (jsonStart !== -1 && jsonEnd !== -1) {
+                const jsonString = content.substring(jsonStart, jsonEnd + 1);
+                try {
+                    agentData = JSON.parse(jsonString);
+                } catch (e) {
+                    console.error('JSON Parse Error:', e);
+                }
+            }
+
+            if (agentData) {
+                // Success: Populate UI
                 document.querySelector('#agent-section-name .content-box').textContent = agentData.name;
                 document.querySelector('#agent-section-description .content-box').textContent = agentData.description;
                 document.querySelector('#agent-section-instructions .content-box').textContent = agentData.instructions;
-                document.querySelector('#agent-section-starters .content-box').textContent = agentData.conversation_starters.join('\n');
+                document.querySelector('#agent-section-starters .content-box').textContent = Array.isArray(agentData.conversation_starters) ? agentData.conversation_starters.join('\n') : agentData.conversation_starters;
 
                 agentResult.style.display = 'block';
                 showToast('Agent Configuration Built!');
-            } catch (e) {
-                console.error('JSON Parse Error', e);
-                // Fallback: Dump raw text into instructions
-                document.querySelector('#agent-section-instructions .content-box').textContent = response.choices[0].message.content;
+            } else {
+                // Fallback: Display raw content but clean up markdown markers
+                console.warn('Falling back to raw text display');
+                let cleanText = content.replace(/```json/gi, '').replace(/```/g, '').trim();
+                document.querySelector('#agent-section-instructions .content-box').textContent = cleanText;
+
+                // Clear other boxes to avoid confusion
+                document.querySelector('#agent-section-name .content-box').textContent = "See Instructions";
+                document.querySelector('#agent-section-description .content-box').textContent = "See Instructions";
+                document.querySelector('#agent-section-starters .content-box').textContent = "See Instructions";
+
                 agentResult.style.display = 'block';
                 showToast('Agent Built (Raw Format)');
             }
