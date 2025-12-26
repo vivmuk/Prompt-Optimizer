@@ -1,0 +1,47 @@
+/* Agent Builder Sections */
+.agent-section {
+    margin-bottom: 20px;
+    background: rgba(255, 255, 255, 0.5);
+    padding: 15px;
+    border-radius: 10px;
+    border: 1px solid #ddd;
+    position: relative;
+}
+
+.agent-section h4 {
+    margin-top: 0;
+    color: var(--color-teal);
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.content-box {
+    margin-top: 5px;
+    white-space: pre-wrap;
+    font-size: 0.95rem;
+    color: #333;
+}
+
+.content-box.code-block {
+    font-family: monospace;
+    background: #f4f4f4;
+    padding: 10px;
+    border-radius: 5px;
+}
+
+.copy-btn-small {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: #eee;
+    border: none;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8rem;
+}
+
+.copy-btn-small:hover {
+    background: #ddd;
+}

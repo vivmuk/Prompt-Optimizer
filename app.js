@@ -182,6 +182,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // --- FEATURE 2: AGENT BUILDER ---
+    // --- FEATURE 2: AGENT BUILDER ---
     buildAgentBtn.addEventListener('click', async () => {
         const platform = agentPlatformSelect.value;
         const description = agentDescriptionInput.value.trim();
@@ -192,14 +193,30 @@ document.addEventListener('DOMContentLoaded', () => {
         buildAgentBtn.disabled = true;
         buildAgentBtn.classList.add('thinking');
 
-        let systemPrompt = `You are an expert AI Architect. Create system instructions for an AI agent.`
-
-        if (platform === 'copilot') systemPrompt += ` Target: Microsoft Copilot Studio. Use clear, actionable language.`;
-        else if (platform === 'gemini') systemPrompt += ` Target: Google Gemini Gems. Use PTCF Framework.`;
-        else if (platform === 'chatgpt') systemPrompt += ` Target: ChatGPT Custom GPTs. Use Markdown & explicit rules.`;
+        let systemPrompt = `You are an expert AI Architect. Create a FULL AGENT CONFIGURATION for a user.
+        
+        Target Platform: ${platform.toUpperCase()}
+        
+        Context:
+        - Copilot Studio: Needs Name, Description, System Prompt, Trigger Phrases.
+        - Gemini Gems: Needs Name, Instructions, Premade Inputs (Starters).
+        - CustomGPT: Needs Name, Description, Instructions, Conversation Starters, Knowledge Base Suggestions.
+        
+        Output Format:
+        Return a JSON object with these exact keys:
+        {
+            "name": "Agent Name",
+            "description": "Short description",
+            "instructions": "Detailed system instructions/prompt...",
+            "conversation_starters": ["Starter 1", "Starter 2"...]
+        }
+        
+        Ensure "instructions" are highly detailed and platform-specific.
+        Wrap the response in a JSON code block.`;
 
         const response = await callApi('/api/chat', {
             model: "llama-3.3-70b",
+            venice_parameters: { include_venice_system_prompt: true },
             messages: [
                 { role: "system", content: systemPrompt },
                 { role: "user", content: `Agent Goal: "${description}"` }
@@ -207,15 +224,39 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         if (response && response.choices) {
-            agentOutput.innerText = response.choices[0].message.content;
-            agentResult.style.display = 'block';
-            showToast('Instructions Built!');
+            let content = response.choices[0].message.content;
+            content = content.replace(/```json/g, '').replace(/```/g, '').trim();
+
+            try {
+                const agentData = JSON.parse(content);
+
+                // Populate UI
+                document.querySelector('#agent-section-name .content-box').textContent = agentData.name;
+                document.querySelector('#agent-section-description .content-box').textContent = agentData.description;
+                document.querySelector('#agent-section-instructions .content-box').textContent = agentData.instructions;
+                document.querySelector('#agent-section-starters .content-box').textContent = agentData.conversation_starters.join('\n');
+
+                agentResult.style.display = 'block';
+                showToast('Agent Configuration Built!');
+            } catch (e) {
+                console.error('JSON Parse Error', e);
+                // Fallback: Dump raw text into instructions
+                document.querySelector('#agent-section-instructions .content-box').textContent = response.choices[0].message.content;
+                agentResult.style.display = 'block';
+                showToast('Agent Built (Raw Format)');
+            }
         }
 
         buildAgentBtn.textContent = 'BUILD INSTRUCTIONS 🛠️';
         buildAgentBtn.disabled = false;
         buildAgentBtn.classList.remove('thinking');
     });
+
+    window.copyAgentSection = (section) => {
+        const selector = `#agent-section-${section} .content-box`;
+        const text = document.querySelector(selector).textContent;
+        navigator.clipboard.writeText(text).then(() => showToast('Copied to clipboard!'));
+    };
 
     // --- FEATURE 3: SKILLS BUILDER (UPDATED) ---
     fetchVeniceModelsBtn.addEventListener('click', async () => {
