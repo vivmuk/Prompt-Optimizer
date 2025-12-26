@@ -260,31 +260,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- FEATURE 3: SKILLS BUILDER (UPDATED) ---
     fetchVeniceModelsBtn.addEventListener('click', async () => {
-        fetchVeniceModelsBtn.textContent = 'Loading...';
-        try {
-            const response = await fetch('/api/models');
-            if (response.status === 401) {
-                showToast('Error: Unauthorized. Check VENICE_API_KEY in .env');
-                veniceStatus.textContent = 'Auth Failed ❌';
-                return;
-            }
-            const data = await response.json();
-            if (data && data.data) {
-                // Parse rich model data (ID, context, traits)
-                loadedModels = data.data.map(m => ({
-                    id: m.id,
-                    context: m.model_spec?.availableContextTokens || 'N/A',
-                    traits: m.model_spec?.traits || []
-                }));
-                veniceStatus.textContent = `Models loaded: ${loadedModels.length}`;
-                showToast(`Loaded ${loadedModels.length} models from Venice!`);
-                console.log('Venice Models:', loadedModels);
-            }
-        } catch (e) {
-            console.error(e);
-            showToast('Failed to load models.');
-        }
-        fetchVeniceModelsBtn.textContent = 'Refresh Venice Models';
+        loadedModels = []; // Reset to force reload
+        await loadVeniceModels();
     });
 
     buildSkillBtn.addEventListener('click', async () => {
