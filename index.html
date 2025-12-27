@@ -14,6 +14,7 @@
         rel="stylesheet">
 
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="anthropic-skills.css">
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
 </head>
 
@@ -32,6 +33,7 @@
             <button class="tab-btn active" data-tab="optimizer">Prompt Optimizer</button>
             <button class="tab-btn" data-tab="agent-builder">Agent Builder</button>
             <button class="tab-btn" data-tab="skills-builder">Skills Builder</button>
+            <button class="tab-btn" data-tab="anthropic-skills">Anthropic Skills</button>
         </nav>
 
         <main>
@@ -187,6 +189,97 @@
                     </div>
                     <pre id="skill-output"
                         style="white-space: pre-wrap; margin-top: 15px; background: #2E2E2E; color: #F4F1EA; padding: 15px; border-radius: 10px; overflow-x: auto; max-height: 400px;"></pre>
+                </div>
+            </section>
+
+            <!-- SECTION 4: ANTHROPIC SKILLS BUILDER -->
+            <section id="anthropic-skills" class="section">
+                <h2>Anthropic Agent Skills</h2>
+                <p style="margin-bottom: 20px; color: #555;">Create modular .skill packages for Claude Code and Anthropic agents. Skills are ZIP files containing SKILL.md with instructions, optional scripts, references, and assets.</p>
+
+                <div class="skill-type-grid">
+                    <div class="skill-type-card selected" data-skill-type="workflow">
+                        <div class="skill-type-icon">🔄</div>
+                        <div class="skill-type-name">Workflow</div>
+                        <div class="skill-type-desc">Multi-step processes</div>
+                    </div>
+                    <div class="skill-type-card" data-skill-type="tool">
+                        <div class="skill-type-icon">🔧</div>
+                        <div class="skill-type-name">Tool</div>
+                        <div class="skill-type-desc">Format handlers & APIs</div>
+                    </div>
+                    <div class="skill-type-card" data-skill-type="reference">
+                        <div class="skill-type-icon">📚</div>
+                        <div class="skill-type-name">Reference</div>
+                        <div class="skill-type-desc">Guidelines & standards</div>
+                    </div>
+                    <div class="skill-type-card" data-skill-type="capabilities">
+                        <div class="skill-type-icon">⚡</div>
+                        <div class="skill-type-name">Capabilities</div>
+                        <div class="skill-type-desc">Extend agent abilities</div>
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label for="anthropic-skill-name" style="display:block; margin-bottom:10px; font-weight:700;">Skill Name (kebab-case):</label>
+                    <input type="text" id="anthropic-skill-name" placeholder="e.g. clinical-trial-analyzer, pdf-handler, brand-guidelines">
+                </div>
+
+                <div class="input-group">
+                    <label for="anthropic-skill-description" style="display:block; margin-bottom:10px; font-weight:700;">What should this skill do?</label>
+                    <textarea id="anthropic-skill-description" placeholder="Describe the skill's purpose, when it should be used, and what capabilities it provides. Be specific about input/output formats, workflows, or guidelines it should contain..."></textarea>
+                </div>
+
+                <div class="checkbox-group" style="margin-bottom: 15px;">
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" id="include-scripts" checked>
+                        <span>Include Python/Bash scripts</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-left: 20px;">
+                        <input type="checkbox" id="include-references">
+                        <span>Include reference docs</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-left: 20px;">
+                        <input type="checkbox" id="include-assets">
+                        <span>Include assets folder</span>
+                    </label>
+                </div>
+
+                <div style="text-align: right;">
+                    <button class="action-btn secondary" id="analyze-skill-btn" style="font-size: 0.9rem;">ANALYZE REQUIREMENTS 🔍</button>
+                    <button class="action-btn" id="build-anthropic-skill-btn">GENERATE SKILL PACKAGE 📦</button>
+                </div>
+
+                <div id="anthropic-skill-loader" style="display: none; text-align: center; padding: 30px;">
+                    <div class="loader"></div>
+                    <p id="anthropic-skill-status">Analyzing skill requirements...</p>
+                </div>
+
+                <!-- Analysis Result -->
+                <div id="anthropic-skill-analysis" class="result-area" style="display: none; margin-top: 20px;">
+                    <h3>📋 Skill Analysis</h3>
+                    <div id="anthropic-skill-structure" class="analysis-content"></div>
+                </div>
+
+                <!-- Generated Skill Result -->
+                <div id="anthropic-skill-result" class="result-area" style="display: none;">
+                    <h3>🎯 Generated Skill Package</h3>
+
+                    <div class="skill-file-tabs">
+                        <button class="skill-file-tab active" data-file="skill-md">SKILL.md</button>
+                        <button class="skill-file-tab" data-file="scripts">Scripts</button>
+                        <button class="skill-file-tab" data-file="structure">Structure</button>
+                    </div>
+
+                    <div id="skill-file-content" class="skill-file-display">
+                        <button class="copy-btn" onclick="copyToClipboard('anthropic-skill-preview')">Copy</button>
+                        <pre id="anthropic-skill-preview" style="white-space: pre-wrap; background: #2E2E2E; color: #F4F1EA; padding: 15px; border-radius: 10px; overflow-x: auto; max-height: 500px; margin-top: 10px;"></pre>
+                    </div>
+
+                    <div style="margin-top: 15px; display: flex; gap: 10px; justify-content: flex-end;">
+                        <button class="action-btn secondary" id="regenerate-skill-btn" style="font-size: 0.9rem; padding: 10px 20px;">Regenerate ↻</button>
+                        <button class="action-btn" id="download-anthropic-skill-btn" style="font-size: 0.9rem; padding: 10px 20px;">Download .skill File 📥</button>
+                    </div>
                 </div>
             </section>
 
