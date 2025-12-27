@@ -23,20 +23,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Agent Builder
     const agentPlatformSelect = document.getElementById('agent-platform');
     const agentDescriptionInput = document.getElementById('agent-description');
+    const agentModelSelect = document.getElementById('agent-model-select');
     const buildAgentBtn = document.getElementById('build-agent-btn');
     const agentResult = document.getElementById('agent-result');
     const agentOutput = document.getElementById('agent-output');
-
-    // Skills Builder
-    const skillNameInput = document.getElementById('skill-name');
-    const skillDescriptionInput = document.getElementById('skill-description');
-    const fetchVeniceModelsBtn = document.getElementById('fetch-venice-models-btn');
-    const veniceStatus = document.getElementById('venice-status');
-    const buildSkillBtn = document.getElementById('build-skill-btn');
-    const skillLoader = document.getElementById('skill-loader');
-    const skillResult = document.getElementById('skill-result');
-    const skillOutput = document.getElementById('skill-output');
-    const downloadSkillBtn = document.getElementById('download-skill-btn');
 
     const toast = document.getElementById('toast');
 
@@ -58,7 +48,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- HELPER: Load Venice Models ---
     async function loadVeniceModels() {
         try {
-            veniceStatus.textContent = 'Loading models...';
+            console.log('Fetching Venice models...');
             const response = await fetch('/api/models');
 
             if (!response.ok) {
@@ -67,25 +57,57 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const data = await response.json();
 
-            if (data && data.data) {
+            if (data && data.data && Array.isArray(data.data)) {
                 loadedModels = data.data;
-                veniceStatus.textContent = `Models loaded: ${loadedModels.length}`;
+                console.log(`Loaded ${loadedModels.length} Venice models`);
+
+                // Populate model dropdowns with fetched models
+                populateModelDropdowns();
+
                 showToast(`Loaded ${loadedModels.length} Venice models!`);
+                return true;
             } else {
                 throw new Error('Invalid response format');
             }
         } catch (error) {
             console.error('Error loading Venice models:', error);
-            veniceStatus.textContent = 'Failed to load models';
-            showToast('Error loading Venice models.');
+            showToast('Using default models.');
 
             // Fallback to default models
             loadedModels = [
-                { id: 'llama-3.3-70b', name: 'Llama 3.3 70B' },
-                { id: 'deepseek-r1-671b-thinking', name: 'DeepSeek R1' },
-                { id: 'qwen3-235b-a22b-thinking-2507', name: 'Qwen 3 235B' }
+                { id: 'deepseek-r1-671b-thinking', name: 'DeepSeek R1 671B' },
+                { id: 'zai-org-glm-4.7', name: 'GLM 4.7' },
+                { id: 'gemini-3-pro-preview', name: 'Gemini 3 Pro Preview' },
+                { id: 'qwen3-4b', name: 'Qwen 3 4B' },
+                { id: 'qwen3-235b-a22b-thinking-2507', name: 'Qwen 3 235B Thinking' },
+                { id: 'venice-uncensored', name: 'Venice Uncensored' }
             ];
+            return false;
         }
+    }
+
+    // --- HELPER: Populate Model Dropdowns ---
+    function populateModelDropdowns() {
+        if (loadedModels.length === 0) return;
+
+        // Clear existing options
+        modelSelect.innerHTML = '';
+        agentModelSelect.innerHTML = '';
+
+        // Populate both dropdowns with fetched models
+        loadedModels.forEach(model => {
+            const optionForOptimizer = document.createElement('option');
+            optionForOptimizer.value = model.id;
+            optionForOptimizer.textContent = model.name || model.id;
+            modelSelect.appendChild(optionForOptimizer);
+
+            const optionForAgent = document.createElement('option');
+            optionForAgent.value = model.id;
+            optionForAgent.textContent = model.name || model.id;
+            agentModelSelect.appendChild(optionForAgent);
+        });
+
+        console.log('Model dropdowns populated with latest models');
     }
 
     // --- TAB SWITCHING ---
@@ -185,8 +207,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 
+        const selectedModel = modelSelect.value;
+
         const response = await callApi('/api/chat', {
-            model: "llama-3.3-70b",
+            model: selectedModel,
             venice_parameters: {
                 include_venice_system_prompt: true,
                 enable_web_search: "off"
@@ -262,8 +286,10 @@ document.addEventListener('DOMContentLoaded', () => {
         Ensure "instructions" are highly detailed and platform-specific.
         Wrap the response in a JSON code block.`;
 
+        const selectedModel = agentModelSelect.value;
+
         const response = await callApi('/api/chat', {
-            model: "llama-3.3-70b",
+            model: selectedModel,
             venice_parameters: { include_venice_system_prompt: true },
             messages: [
                 { role: "system", content: systemPrompt },
@@ -325,98 +351,7 @@ document.addEventListener('DOMContentLoaded', () => {
         navigator.clipboard.writeText(text).then(() => showToast('Copied to clipboard!'));
     };
 
-    // --- FEATURE 3: SKILLS BUILDER (UPDATED) ---
-    fetchVeniceModelsBtn.addEventListener('click', async () => {
-        loadedModels = []; // Reset to force reload
-        await loadVeniceModels();
-    });
-
-    buildSkillBtn.addEventListener('click', async () => {
-        const name = skillNameInput.value.trim();
-        const description = skillDescriptionInput.value.trim();
-
-        if (!name || !description) return showToast('Details required.');
-        if (loadedModels.length === 0) await fetchVeniceModelsBtn.click();
-
-        skillResult.style.display = 'none';
-        skillLoader.style.display = 'block';
-
-        // Timeout for "Waiting Graphics" effect
-        setTimeout(async () => {
-            const systemPrompt = `You are a Python Developer. Create a FULL SKILL PACKAGE for a tool named "${name}".
-             
-             Context:
-             - Description: "${description}"
-             - Available Models: ${loadedModels.slice(0, 5).map(m => m.id).join(', ')}...
-             
-             Output Format:
-             Return a JSON object with 3 keys:
-             1. "tool_code": Python code for the tool.
-             2. "requirements": content for requirements.txt.
-             3. "readme": content for README.md.
-             
-             Wrap the whole response in a JSON code block.`;
-
-            const response = await callApi('/api/chat', {
-                model: "llama-3.3-70b",
-                venice_parameters: { include_venice_system_prompt: true },
-                messages: [
-                    { role: "system", content: systemPrompt },
-                    { role: "user", content: "Generate the skill package." }
-                ]
-            });
-
-            skillLoader.style.display = 'none';
-
-            if (response && response.choices) {
-                let content = response.choices[0].message.content;
-                // Basic clean up to try and parse JSON if wrapped in markdown
-                content = content.replace(/```json/g, '').replace(/```/g, '').trim();
-
-                try {
-                    const skillData = JSON.parse(content);
-                    currentSkillData = skillData;
-
-                    const display = `
-=== tool.py ===
-${skillData.tool_code}
-
-=== requirements.txt ===
-${skillData.requirements}
-
-=== README.md ===
-${skillData.readme}
-                    `;
-                    skillOutput.innerText = display;
-                    skillResult.style.display = 'block';
-                    showToast('Skill Package Generated!');
-                } catch (e) {
-                    skillOutput.innerText = content; // Fallback to raw text
-                    currentSkillData = { raw: content };
-                    skillResult.style.display = 'block';
-                    showToast('Skill Generated (Raw Format)');
-                }
-            }
-        }, 1500);
-    });
-
-    downloadSkillBtn.addEventListener('click', () => {
-        if (!currentSkillData) return;
-
-        let fileContent = "";
-        if (currentSkillData.raw) {
-            fileContent = currentSkillData.raw;
-        } else {
-            fileContent = `SKILL PACKAGE: ${skillNameInput.value}\n\n` +
-                `--- tool.py ---\n${currentSkillData.tool_code}\n\n` +
-                `--- requirements.txt ---\n${currentSkillData.requirements}\n\n` +
-                `--- README.md ---\n${currentSkillData.readme}\n`;
-        }
-
-        downloadMockZip(skillNameInput.value || 'skill', fileContent);
-    });
-
-    // --- FEATURE 4: ANTHROPIC SKILLS BUILDER ---
+    // --- FEATURE 3: ANTHROPIC SKILLS BUILDER ---
     let selectedSkillType = 'workflow';
 
     // Skill type card selection
@@ -544,7 +479,7 @@ Return a JSON object with this structure:
 Wrap the response in a JSON code block.`;
 
             const response = await callApi('/api/chat', {
-                model: "llama-3.3-70b",
+                model: "zai-org-glm-4.7",
                 venice_parameters: {
                     include_venice_system_prompt: true,
                     enable_web_search: "off"
@@ -677,7 +612,7 @@ Include Assets: ${includeAssets}
 Return ONLY the complete SKILL.md content (frontmatter + body), no additional text or explanation.`;
 
             const skillMdResponse = await callApi('/api/chat', {
-                model: "llama-3.3-70b",
+                model: "zai-org-glm-4.7",
                 venice_parameters: {
                     include_venice_system_prompt: true,
                     enable_web_search: "off"
@@ -726,7 +661,7 @@ Guidelines:
 Wrap the response in a JSON code block.`;
 
                 const scriptsResponse = await callApi('/api/chat', {
-                    model: "llama-3.3-70b",
+                    model: "zai-org-glm-4.7",
                     venice_parameters: {
                         include_venice_system_prompt: true,
                         enable_web_search: "off"
@@ -780,7 +715,7 @@ Guidelines:
 Wrap the response in a JSON code block.`;
 
                 const referencesResponse = await callApi('/api/chat', {
-                    model: "llama-3.3-70b",
+                    model: "zai-org-glm-4.7",
                     venice_parameters: {
                         include_venice_system_prompt: true,
                         enable_web_search: "off"
@@ -932,4 +867,7 @@ Wrap the response in a JSON code block.`;
             downloadAnthropicSkillBtn.textContent = 'Download .skill File 📥';
         });
     }
+
+    // --- INITIALIZE: Load Venice models on page load ---
+    loadVeniceModels();
 });
