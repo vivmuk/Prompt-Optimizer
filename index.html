@@ -78,119 +78,139 @@
                     <button class="action-btn" id="optimize-btn">TRANSFORM ✨</button>
                 </div>
 
-                <div id="optimizer-result" class="result-area" style="display: none;">
-                    <button class="copy-btn" onclick="copyToClipboard('optimized-output')">Copy</button>
-                    <h3>Optimized Result:</h3>
-                    <div id="optimized-output" style="white-space: pre-wrap; margin-top: 15px;"></div>
-                    <button class="action-btn secondary" id="generate-answer-btn"
-                        style="margin-top: 15px; font-size: 1rem;">Generate Answer with AI</button>
-                    <div id="generated-answer"
-                        style="margin-top: 20px; border-top: 2px dashed #ccc; padding-top: 20px; display: none;"></div>
-                </div>
-            </section>
+    </div>
 
-            <!-- SECTION 2: AGENT BUILDER -->
-            <section id="agent-builder" class="section">
-                <h2>Build Your Agent</h2>
-                <p style="margin-bottom: 20px; color: #555;">Generate precise system instructions for your custom AI
-                    agents.</p>
+    <div id="optimizer-loader" style="display: none; text-align: center; margin-top: 20px;">
+        <div class="loader"></div>
+        <p>Optimizing your prompt...</p>
+        <div id="optimizer-progress"
+            style="font-size: 2rem; font-weight: bold; color: var(--color-teal); margin-top: 10px;">0%</div>
+    </div>
 
-                <div class="input-group">
-                    <label for="agent-platform" style="display:block; margin-bottom:10px; font-weight:700;">Target
-                        Platform:</label>
-                    <select id="agent-platform">
-                        <option value="copilot">Microsoft Copilot Studio</option>
-                        <option value="gemini">Google Gemini Gems</option>
-                        <option value="chatgpt">ChatGPT Custom GPTs</option>
-                    </select>
-                </div>
+    <div id="optimizer-result" class="result-area" style="display: none;">
+        <button class="copy-btn" onclick="copyToClipboard('optimized-output')">Copy</button>
+        <h3>Optimized Result:</h3>
+        <div id="optimized-output" style="white-space: pre-wrap; margin-top: 15px;"></div>
+        <button class="action-btn secondary" id="generate-answer-btn"
+            style="margin-top: 15px; font-size: 1rem;">Generate Answer with AI</button>
+        <div id="generated-answer"
+            style="margin-top: 20px; border-top: 2px dashed #ccc; padding-top: 20px; display: none;"></div>
+    </div>
+    </section>
 
-                <div class="input-group">
-                    <label for="agent-description" style="display:block; margin-bottom:10px; font-weight:700;">Agent
-                        Goal & Persona:</label>
-                    <textarea id="agent-description"
-                        placeholder="Describe what your agent should do, its personality, and any specific constraints..."></textarea>
-                </div>
+    <!-- SECTION 2: AGENT BUILDER -->
+    <section id="agent-builder" class="section">
+        <h2>Build Your Agent</h2>
+        <p style="margin-bottom: 20px; color: #555;">Generate precise system instructions for your custom AI
+            agents.</p>
 
-                <div style="text-align: right;">
-                    <button class="action-btn" id="build-agent-btn">BUILD INSTRUCTIONS 🛠️</button>
-                </div>
+        <div class="input-group">
+            <label for="agent-platform" style="display:block; margin-bottom:10px; font-weight:700;">Target
+                Platform:</label>
+            <select id="agent-platform">
+                <option value="copilot">Microsoft Copilot Studio</option>
+                <option value="gemini">Google Gemini Gems</option>
+                <option value="chatgpt">ChatGPT Custom GPTs</option>
+            </select>
+        </div>
 
-                <div id="agent-result" class="result-area" style="display: none;">
-                    <h3>Agent Configuration:</h3>
+        <div class="input-group">
+            <label for="agent-description" style="display:block; margin-bottom:10px; font-weight:700;">Agent
+                Goal & Persona:</label>
+            <textarea id="agent-description"
+                placeholder="Describe what your agent should do, its personality, and any specific constraints..."></textarea>
+        </div>
 
-                    <div class="agent-section" id="agent-section-name">
-                        <h4>Name:</h4>
-                        <div class="content-box"></div>
-                        <button class="copy-btn-small" onclick="copyAgentSection('name')">Copy</button>
-                    </div>
+        <div style="text-align: right;">
+            <button class="action-btn" id="build-agent-btn">BUILD INSTRUCTIONS 🛠️</button>
+        </div>
 
-                    <div class="agent-section" id="agent-section-description">
-                        <h4>Description:</h4>
-                        <div class="content-box"></div>
-                        <button class="copy-btn-small" onclick="copyAgentSection('description')">Copy</button>
-                    </div>
+        </div>
 
-                    <div class="agent-section" id="agent-section-instructions">
-                        <h4>System Instructions:</h4>
-                        <div class="content-box code-block"></div>
-                        <button class="copy-btn-small" onclick="copyAgentSection('instructions')">Copy</button>
-                    </div>
+        <div id="agent-loader" style="display: none; text-align: center; margin-top: 20px;">
+            <div class="loader"></div>
+            <p>Constructing agent profile...</p>
+            <div id="agent-progress"
+                style="font-size: 2rem; font-weight: bold; color: var(--color-teal); margin-top: 10px;">0%</div>
+        </div>
 
-                    <div class="agent-section" id="agent-section-starters">
-                        <h4>Conversation Starters:</h4>
-                        <div class="content-box"></div>
-                        <button class="copy-btn-small" onclick="copyAgentSection('starters')">Copy</button>
-                    </div>
-                </div>
-            </section>
+        <div id="agent-result" class="result-area" style="display: none;">
+            <h3>Agent Configuration:</h3>
 
-            <!-- SECTION 3: SKILLS BUILDER -->
-            <section id="skills-builder" class="section">
-                <h2>Create Agent Skills</h2>
-                <p style="margin-bottom: 20px; color: #555;">Generate backend skill definitions powered by Venice AI
-                    models.</p>
+            <div class="agent-section" id="agent-section-name">
+                <h4>Name:</h4>
+                <div class="content-box"></div>
+                <button class="copy-btn-small" onclick="copyAgentSection('name')">Copy</button>
+            </div>
 
-                <div class="input-group">
-                    <label for="skill-name" style="display:block; margin-bottom:10px; font-weight:700;">Skill
-                        Name:</label>
-                    <input type="text" id="skill-name" placeholder="e.g. StockPriceFetcher">
-                </div>
+            <div class="agent-section" id="agent-section-description">
+                <h4>Description:</h4>
+                <div class="content-box"></div>
+                <button class="copy-btn-small" onclick="copyAgentSection('description')">Copy</button>
+            </div>
 
-                <div class="input-group">
-                    <label for="skill-description" style="display:block; margin-bottom:10px; font-weight:700;">What
-                        should this skill do?</label>
-                    <textarea id="skill-description"
-                        placeholder="Describe the API or function this skill should execute..."></textarea>
-                </div>
+            <div class="agent-section" id="agent-section-instructions">
+                <h4>System Instructions:</h4>
+                <div class="content-box code-block"></div>
+                <button class="copy-btn-small" onclick="copyAgentSection('instructions')">Copy</button>
+            </div>
 
-                <div style="text-align: right;">
-                    <button class="action-btn" id="fetch-venice-models-btn"
-                        style="font-size: 0.9rem; background: var(--color-teal); color: white;">Refresh Venice
-                        Models</button>
-                    <p id="venice-status" style="font-size: 0.8rem; display: inline-block; margin-right: 10px;">Models
-                        loaded: 0</p>
-                    <button class="action-btn" id="build-skill-btn">GENERATE SKILL ⚡</button>
-                </div>
+            <div class="agent-section" id="agent-section-starters">
+                <h4>Conversation Starters:</h4>
+                <div class="content-box"></div>
+                <button class="copy-btn-small" onclick="copyAgentSection('starters')">Copy</button>
+            </div>
+        </div>
+    </section>
 
-                <div id="skill-loader" style="display: none; text-align: center;">
-                    <div class="loader"></div>
-                    <p>Brewing your skill code...</p>
-                </div>
+    <!-- SECTION 3: SKILLS BUILDER -->
+    <section id="skills-builder" class="section">
+        <h2>Create Agent Skills</h2>
+        <p style="margin-bottom: 20px; color: #555;">Generate backend skill definitions powered by Venice AI
+            models.</p>
 
-                <div id="skill-result" class="result-area" style="display: none;">
-                    <button class="copy-btn" onclick="copyToClipboard('skill-output')">Copy Code</button>
-                    <h3>Skill Package:</h3>
-                    <div style="margin-top: 10px; margin-bottom: 10px;">
-                        <button class="action-btn" id="download-skill-btn"
-                            style="font-size: 0.9rem; padding: 8px 16px;">Download .zip Package 📦</button>
-                    </div>
-                    <pre id="skill-output"
-                        style="white-space: pre-wrap; margin-top: 15px; background: #2E2E2E; color: #F4F1EA; padding: 15px; border-radius: 10px; overflow-x: auto; max-height: 400px;"></pre>
-                </div>
-            </section>
+        <div class="input-group">
+            <label for="skill-name" style="display:block; margin-bottom:10px; font-weight:700;">Skill
+                Name:</label>
+            <input type="text" id="skill-name" placeholder="e.g. StockPriceFetcher">
+        </div>
 
-        </main>
+        <div class="input-group">
+            <label for="skill-description" style="display:block; margin-bottom:10px; font-weight:700;">What
+                should this skill do?</label>
+            <textarea id="skill-description"
+                placeholder="Describe the API or function this skill should execute..."></textarea>
+        </div>
+
+        <div style="text-align: right;">
+            <button class="action-btn" id="fetch-venice-models-btn"
+                style="font-size: 0.9rem; background: var(--color-teal); color: white;">Refresh Venice
+                Models</button>
+            <p id="venice-status" style="font-size: 0.8rem; display: inline-block; margin-right: 10px;">Models
+                loaded: 0</p>
+            <button class="action-btn" id="build-skill-btn">GENERATE SKILL ⚡</button>
+        </div>
+
+        <div id="skill-loader" style="display: none; text-align: center;">
+            <div class="loader"></div>
+            <p>Brewing your skill code...</p>
+            <div id="skill-progress"
+                style="font-size: 2rem; font-weight: bold; color: var(--color-teal); margin-top: 10px;">0%</div>
+        </div>
+
+        <div id="skill-result" class="result-area" style="display: none;">
+            <button class="copy-btn" onclick="copyToClipboard('skill-output')">Copy Code</button>
+            <h3>Skill Package:</h3>
+            <div style="margin-top: 10px; margin-bottom: 10px;">
+                <button class="action-btn" id="download-skill-btn"
+                    style="font-size: 0.9rem; padding: 8px 16px;">Download .zip Package 📦</button>
+            </div>
+            <pre id="skill-output"
+                style="white-space: pre-wrap; margin-top: 15px; background: #2E2E2E; color: #F4F1EA; padding: 15px; border-radius: 10px; overflow-x: auto; max-height: 400px;"></pre>
+        </div>
+    </section>
+
+    </main>
     </div>
 
     <div id="toast" class="toast">Action Successful!</div>

@@ -17,6 +17,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const optimizeBtn = document.getElementById('optimize-btn');
     const optimizerResult = document.getElementById('optimizer-result');
     const optimizedOutput = document.getElementById('optimized-output');
+    const optimizerLoader = document.getElementById('optimizer-loader');
+    const optimizerProgress = document.getElementById('optimizer-progress');
     const generateAnswerBtn = document.getElementById('generate-answer-btn');
     const generatedAnswer = document.getElementById('generated-answer');
 
@@ -26,6 +28,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const buildAgentBtn = document.getElementById('build-agent-btn');
     const agentResult = document.getElementById('agent-result');
     const agentOutput = document.getElementById('agent-output');
+    const agentLoader = document.getElementById('agent-loader');
+    const agentProgress = document.getElementById('agent-progress');
 
     // Skills Builder
     const skillNameInput = document.getElementById('skill-name');
@@ -34,6 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const veniceStatus = document.getElementById('venice-status');
     const buildSkillBtn = document.getElementById('build-skill-btn');
     const skillLoader = document.getElementById('skill-loader');
+    const skillProgress = document.getElementById('skill-progress');
     const skillResult = document.getElementById('skill-result');
     const skillOutput = document.getElementById('skill-output');
     const downloadSkillBtn = document.getElementById('download-skill-btn');
@@ -108,9 +113,21 @@ document.addEventListener('DOMContentLoaded', () => {
         const provider = providerSelect.value;
         if (!prompt) return showToast('Please enter a prompt first.');
 
-        optimizeBtn.textContent = 'Transforming...';
+        // UI Reset
         optimizeBtn.disabled = true;
-        optimizeBtn.classList.add('thinking'); // Start Animation
+        optimizerResult.style.display = 'none';
+        optimizerLoader.style.display = 'block';
+        optimizerProgress.innerText = '0%';
+
+        // Animation
+        let progress = 0;
+        const interval = setInterval(() => {
+            if (progress < 90) {
+                progress += Math.floor(Math.random() * 5) + 1;
+                if (progress > 90) progress = 90;
+                optimizerProgress.innerText = `${progress}%`;
+            }
+        }, 200);
 
         // Context Engineering System Prompt
         let systemPrompt = `You are a world-class prompt engineer. Transform this prompt for ${provider.toUpperCase()}.`;
@@ -135,29 +152,40 @@ document.addEventListener('DOMContentLoaded', () => {
 
         systemPrompt += `\n\nReturn ONLY the optimized prompt.`;
 
+        try {
+            const response = await callApi('/api/chat', {
+                model: "llama-3.3-70b",
+                venice_parameters: {
+                    include_venice_system_prompt: true,
+                    enable_web_search: "off"
+                },
+                messages: [
+                    { role: "system", content: systemPrompt },
+                    { role: "user", content: `Optimize this prompt: "${prompt}"` }
+                ]
+            });
 
+            clearInterval(interval);
+            optimizerProgress.innerText = '100%';
 
-        const response = await callApi('/api/chat', {
-            model: "llama-3.3-70b",
-            venice_parameters: {
-                include_venice_system_prompt: true,
-                enable_web_search: "off"
-            },
-            messages: [
-                { role: "system", content: systemPrompt },
-                { role: "user", content: `Optimize this prompt: "${prompt}"` }
-            ]
-        });
+            setTimeout(() => {
+                optimizerLoader.style.display = 'none';
+                optimizeBtn.disabled = false;
 
-        if (response && response.choices) {
-            optimizedOutput.innerText = response.choices[0].message.content;
-            optimizerResult.style.display = 'block';
-            showToast('Prompt Optimized!');
+                if (response && response.choices) {
+                    optimizedOutput.innerText = response.choices[0].message.content;
+                    optimizerResult.style.display = 'block';
+                    showToast('Prompt Optimized!');
+                    optimizerResult.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            }, 500);
+
+        } catch (e) {
+            clearInterval(interval);
+            optimizerLoader.style.display = 'none';
+            optimizeBtn.disabled = false;
+            showToast('Error optimizing prompt');
         }
-
-        optimizeBtn.textContent = 'TRANSFORM ✨';
-        optimizeBtn.disabled = false;
-        optimizeBtn.classList.remove('thinking'); // Stop Animation
     });
 
     generateAnswerBtn.addEventListener('click', async () => {
@@ -189,9 +217,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (!description) return showToast('Please describe your agent.');
 
-        buildAgentBtn.textContent = 'Building...';
+        // UI Reset
         buildAgentBtn.disabled = true;
-        buildAgentBtn.classList.add('thinking');
+        agentResult.style.display = 'none';
+        agentLoader.style.display = 'block';
+        agentProgress.innerText = '0%';
+
+        // Animation
+        let progress = 0;
+        const interval = setInterval(() => {
+            if (progress < 90) {
+                progress += Math.floor(Math.random() * 5) + 1;
+                if (progress > 90) progress = 90;
+                agentProgress.innerText = `${progress}%`;
+            }
+        }, 200);
 
         let systemPrompt = `You are an expert AI Architect. Create a FULL AGENT CONFIGURATION for a user.
         
@@ -214,61 +254,75 @@ document.addEventListener('DOMContentLoaded', () => {
         Ensure "instructions" are highly detailed and platform-specific.
         Wrap the response in a JSON code block.`;
 
-        const response = await callApi('/api/chat', {
-            model: "llama-3.3-70b",
-            venice_parameters: { include_venice_system_prompt: true },
-            messages: [
-                { role: "system", content: systemPrompt },
-                { role: "user", content: `Agent Goal: "${description}"` }
-            ]
-        });
+        try {
+            const response = await callApi('/api/chat', {
+                model: "llama-3.3-70b",
+                venice_parameters: { include_venice_system_prompt: true },
+                messages: [
+                    { role: "system", content: systemPrompt },
+                    { role: "user", content: `Agent Goal: "${description}"` }
+                ]
+            });
 
-        if (response && response.choices) {
-            let content = response.choices[0].message.content;
+            clearInterval(interval);
+            agentProgress.innerText = '100%';
 
-            // Robust JSON extraction: Find the first '{' and the last '}'
-            const jsonStart = content.indexOf('{');
-            const jsonEnd = content.lastIndexOf('}');
+            setTimeout(() => {
+                agentLoader.style.display = 'none';
+                buildAgentBtn.disabled = false;
 
-            let agentData = null;
+                if (response && response.choices) {
+                    let content = response.choices[0].message.content;
 
-            if (jsonStart !== -1 && jsonEnd !== -1) {
-                const jsonString = content.substring(jsonStart, jsonEnd + 1);
-                try {
-                    agentData = JSON.parse(jsonString);
-                } catch (e) {
-                    console.error('JSON Parse Error:', e);
+                    // Robust JSON extraction
+                    const jsonStart = content.indexOf('{');
+                    const jsonEnd = content.lastIndexOf('}');
+
+                    let agentData = null;
+
+                    if (jsonStart !== -1 && jsonEnd !== -1) {
+                        const jsonString = content.substring(jsonStart, jsonEnd + 1);
+                        try {
+                            agentData = JSON.parse(jsonString);
+                        } catch (e) {
+                            console.error('JSON Parse Error:', e);
+                        }
+                    }
+
+                    if (agentData) {
+                        // Success: Populate UI
+                        document.querySelector('#agent-section-name .content-box').textContent = agentData.name;
+                        document.querySelector('#agent-section-description .content-box').textContent = agentData.description;
+                        document.querySelector('#agent-section-instructions .content-box').textContent = agentData.instructions;
+                        document.querySelector('#agent-section-starters .content-box').textContent = Array.isArray(agentData.conversation_starters) ? agentData.conversation_starters.join('\n') : agentData.conversation_starters;
+
+                        agentResult.style.display = 'block';
+                        showToast('Agent Configuration Built!');
+                        agentResult.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+                    } else {
+                        // Fallback
+                        console.warn('Falling back to raw text display');
+                        let cleanText = content.replace(/```json/gi, '').replace(/```/g, '').trim();
+                        document.querySelector('#agent-section-instructions .content-box').textContent = cleanText;
+
+                        document.querySelector('#agent-section-name .content-box').textContent = "See Instructions";
+                        document.querySelector('#agent-section-description .content-box').textContent = "See Instructions";
+                        document.querySelector('#agent-section-starters .content-box').textContent = "See Instructions";
+
+                        agentResult.style.display = 'block';
+                        showToast('Agent Built (Raw Format)');
+                        agentResult.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
                 }
-            }
+            }, 500);
 
-            if (agentData) {
-                // Success: Populate UI
-                document.querySelector('#agent-section-name .content-box').textContent = agentData.name;
-                document.querySelector('#agent-section-description .content-box').textContent = agentData.description;
-                document.querySelector('#agent-section-instructions .content-box').textContent = agentData.instructions;
-                document.querySelector('#agent-section-starters .content-box').textContent = Array.isArray(agentData.conversation_starters) ? agentData.conversation_starters.join('\n') : agentData.conversation_starters;
-
-                agentResult.style.display = 'block';
-                showToast('Agent Configuration Built!');
-            } else {
-                // Fallback: Display raw content but clean up markdown markers
-                console.warn('Falling back to raw text display');
-                let cleanText = content.replace(/```json/gi, '').replace(/```/g, '').trim();
-                document.querySelector('#agent-section-instructions .content-box').textContent = cleanText;
-
-                // Clear other boxes to avoid confusion
-                document.querySelector('#agent-section-name .content-box').textContent = "See Instructions";
-                document.querySelector('#agent-section-description .content-box').textContent = "See Instructions";
-                document.querySelector('#agent-section-starters .content-box').textContent = "See Instructions";
-
-                agentResult.style.display = 'block';
-                showToast('Agent Built (Raw Format)');
-            }
+        } catch (e) {
+            clearInterval(interval);
+            agentLoader.style.display = 'none';
+            buildAgentBtn.disabled = false;
+            showToast('Error building agent');
         }
-
-        buildAgentBtn.textContent = 'BUILD INSTRUCTIONS 🛠️';
-        buildAgentBtn.disabled = false;
-        buildAgentBtn.classList.remove('thinking');
     });
 
     window.copyAgentSection = (section) => {
@@ -288,83 +342,123 @@ document.addEventListener('DOMContentLoaded', () => {
         const description = skillDescriptionInput.value.trim();
 
         if (!name || !description) return showToast('Details required.');
-        if (loadedModels.length === 0) await fetchVeniceModelsBtn.click();
 
+        // Initialize UI
         skillResult.style.display = 'none';
         skillLoader.style.display = 'block';
+        skillProgress.innerText = '0%';
 
-        // Timeout for "Waiting Graphics" effect
-        setTimeout(async () => {
-            const systemPrompt = `You are a Python Developer. Create a FULL SKILL PACKAGE for a tool named "${name}".
-             
-             Context:
-             - Description: "${description}"
-             - Available Models: ${loadedModels.slice(0, 5).map(m => m.id).join(', ')}...
-             
-             Output Format:
-             Return a JSON object with 3 keys:
-             1. "tool_code": Python code for the tool.
-             2. "requirements": content for requirements.txt.
-             3. "readme": content for README.md.
-             
-             Wrap the whole response in a JSON code block.`;
+        let progress = 0;
+        const interval = setInterval(() => {
+            if (progress < 90) {
+                progress += Math.floor(Math.random() * 5) + 1;
+                if (progress > 90) progress = 90;
+                skillProgress.innerText = `${progress}%`;
+            }
+        }, 300);
+
+        try {
+            const systemPrompt = `You are an expert Claude Agent Skills Architect. Your task is to generate a comprehensive 'SKILL.md' file based on the user's request.
+
+            REFERENCE GUIDE SUMMARY:
+            - Agent Skills are modular packages extending Claude's capabilities.
+            - Structure: YAML frontmatter (name, description) + formatting Markdown instructions.
+            - Frontmatter 'description' is CRITICAL: must state WHAT it does and WHEN to use it (triggers).
+            
+            INPUT:
+            Skill Name: "${name}"
+            Goal/Description: "${description}"
+
+            OUTPUT FORMAT:
+            Return a JSON object with this exact structure:
+            {
+                "skill_name": "clean-kebab-case-name",
+                "skill_content": "...full escaped markdown content of SKILL.md including YAML frontmatter...",
+                "readme_tips": "Short bullet points on how to use this skill."
+            }
+
+            CONTENT RULES:
+            1. 'name' in YAML must be lowercase, numbers, hyphens only.
+            2. 'description' in YAML must follow the pattern: "[WHAT is does]. Use when [TRIGGERS]."
+            3. Include clear headers: # Title, ## Instructions, ## Examples.
+            `;
 
             const response = await callApi('/api/chat', {
                 model: "llama-3.3-70b",
                 venice_parameters: { include_venice_system_prompt: true },
                 messages: [
                     { role: "system", content: systemPrompt },
-                    { role: "user", content: "Generate the skill package." }
+                    { role: "user", content: "Generate the SKILL.md file now." }
                 ]
             });
 
-            skillLoader.style.display = 'none';
+            // Finish Animation
+            clearInterval(interval);
+            skillProgress.innerText = '100%';
 
-            if (response && response.choices) {
-                let content = response.choices[0].message.content;
-                // Basic clean up to try and parse JSON if wrapped in markdown
-                content = content.replace(/```json/g, '').replace(/```/g, '').trim();
+            setTimeout(() => {
+                skillLoader.style.display = 'none';
 
-                try {
-                    const skillData = JSON.parse(content);
-                    currentSkillData = skillData;
+                if (response && response.choices) {
+                    let content = response.choices[0].message.content;
+                    // Clean up markdown block if present
+                    const jsonStart = content.indexOf('{');
+                    const jsonEnd = content.lastIndexOf('}');
 
-                    const display = `
-=== tool.py ===
-${skillData.tool_code}
+                    if (jsonStart !== -1 && jsonEnd !== -1) {
+                        content = content.substring(jsonStart, jsonEnd + 1);
+                    }
 
-=== requirements.txt ===
-${skillData.requirements}
+                    try {
+                        const skillData = JSON.parse(content);
+                        currentSkillData = skillData;
 
-=== README.md ===
-${skillData.readme}
-                    `;
-                    skillOutput.innerText = display;
-                    skillResult.style.display = 'block';
-                    showToast('Skill Package Generated!');
-                } catch (e) {
-                    skillOutput.innerText = content; // Fallback to raw text
-                    currentSkillData = { raw: content };
-                    skillResult.style.display = 'block';
-                    showToast('Skill Generated (Raw Format)');
+                        skillOutput.innerText = skillData.skill_content;
+                        skillResult.style.display = 'block';
+                        showToast('Agent Skill Generated!');
+
+                        // Auto-scroll to result
+                        skillResult.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+                    } catch (e) {
+                        console.error('JSON Parse Error', e);
+                        skillOutput.innerText = response.choices[0].message.content; // Fallback
+                        currentSkillData = { raw: response.choices[0].message.content };
+                        skillResult.style.display = 'block';
+                        showToast('Skill Generated (Raw)');
+                        skillResult.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
                 }
-            }
-        }, 1500);
+            }, 500); // Short delay to show 100%
+
+        } catch (err) {
+            clearInterval(interval);
+            skillLoader.style.display = 'none';
+            showToast('Error generating skill');
+            console.error(err);
+        }
     });
 
     downloadSkillBtn.addEventListener('click', () => {
         if (!currentSkillData) return;
 
         let fileContent = "";
+        let fileName = skillNameInput.value || 'skill';
+
         if (currentSkillData.raw) {
             fileContent = currentSkillData.raw;
+        } else if (currentSkillData.skill_content) {
+            // New Format: SKILL.md
+            fileContent = currentSkillData.skill_content;
+            fileName = currentSkillData.skill_name || fileName;
         } else {
-            fileContent = `SKILL PACKAGE: ${skillNameInput.value}\n\n` +
+            // Legacy Format (fallback)
+            fileContent = `SKILL PACKAGE: ${fileName}\n\n` +
                 `--- tool.py ---\n${currentSkillData.tool_code}\n\n` +
                 `--- requirements.txt ---\n${currentSkillData.requirements}\n\n` +
                 `--- README.md ---\n${currentSkillData.readme}\n`;
         }
 
-        downloadMockZip(skillNameInput.value || 'skill', fileContent);
+        downloadMockZip(fileName, fileContent);
     });
 });
