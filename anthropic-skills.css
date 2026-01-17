@@ -1,0 +1,390 @@
+/* Anthropic Skills Builder Styles */
+
+/* Skill Type Grid */
+.skill-type-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 15px;
+    margin-bottom: 25px;
+}
+
+@media (max-width: 768px) {
+    .skill-type-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+.skill-type-card {
+    padding: 20px 15px;
+    border: 2px solid var(--color-charcoal);
+    text-align: center;
+    cursor: pointer;
+    background: white;
+    border-radius: 15px;
+    transition: all 0.2s ease;
+    box-shadow: 3px 3px 0px rgba(46, 46, 46, 0.15);
+}
+
+.skill-type-card:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 5px 5px 0px rgba(46, 46, 46, 0.2);
+}
+
+.skill-type-card.selected {
+    background: var(--color-teal);
+    color: white;
+    box-shadow: 4px 4px 0px var(--color-charcoal);
+    transform: translate(-2px, -2px);
+}
+
+.skill-type-icon {
+    font-size: 2rem;
+    margin-bottom: 8px;
+}
+
+.skill-type-name {
+    font-family: var(--font-primary);
+    font-weight: 700;
+    font-size: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.skill-type-desc {
+    font-size: 0.75rem;
+    opacity: 0.8;
+    margin-top: 4px;
+}
+
+/* Checkbox Group */
+.checkbox-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 15px;
+    background: rgba(255, 255, 255, 0.5);
+    border-radius: 10px;
+    border: 1px solid #ddd;
+}
+
+.checkbox-group label {
+    font-size: 0.9rem;
+}
+
+.checkbox-group input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: var(--color-teal);
+}
+
+/* Analysis Content */
+.analysis-content {
+    background: rgba(255, 255, 255, 0.7);
+    padding: 20px;
+    border-radius: 10px;
+    margin-top: 15px;
+}
+
+.analysis-item {
+    margin-bottom: 15px;
+    line-height: 1.6;
+}
+
+.analysis-item:last-child {
+    margin-bottom: 0;
+}
+
+.analysis-item strong {
+    color: var(--color-teal);
+    display: block;
+    margin-bottom: 5px;
+    font-family: var(--font-primary);
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    letter-spacing: 0.5px;
+}
+
+.analysis-item ul,
+.analysis-item ol {
+    margin: 8px 0 0 20px;
+    padding: 0;
+}
+
+.analysis-item li {
+    margin-bottom: 5px;
+}
+
+/* Skill File Tabs */
+.skill-file-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+    border-bottom: 2px solid #ddd;
+    padding-bottom: 10px;
+}
+
+.skill-file-tab {
+    background: transparent;
+    border: 2px solid var(--color-charcoal);
+    padding: 8px 16px;
+    font-family: var(--font-primary);
+    font-size: 0.85rem;
+    cursor: pointer;
+    border-radius: 8px 8px 0 0;
+    transition: all 0.2s;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.skill-file-tab:hover {
+    background: rgba(0, 178, 169, 0.1);
+}
+
+.skill-file-tab.active {
+    background: var(--color-teal);
+    color: white;
+    border-color: var(--color-teal);
+}
+
+/* Skill File Display */
+.skill-file-display {
+    position: relative;
+}
+
+.skill-file-display .copy-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 10;
+}
+
+/* Result Area Enhancements for Anthropic Skills */
+#anthropic-skill-result .result-area,
+#anthropic-skill-analysis.result-area {
+    border: 2px solid var(--color-charcoal);
+    border-radius: 15px;
+    padding: 25px;
+    background: white;
+    box-shadow: 4px 4px 0px rgba(46, 46, 46, 0.15);
+}
+
+#anthropic-skill-result h3,
+#anthropic-skill-analysis h3 {
+    color: var(--color-charcoal);
+    margin-bottom: 20px;
+    font-size: 1.2rem;
+}
+
+/* Copy Button Styling */
+.copy-btn {
+    background: var(--color-mustard);
+    color: var(--color-charcoal);
+    border: 2px solid var(--color-charcoal);
+    padding: 8px 16px;
+    font-family: var(--font-primary);
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+    border-radius: 20px;
+    transition: all 0.2s;
+    box-shadow: 2px 2px 0px rgba(46, 46, 46, 0.2);
+}
+
+.copy-btn:hover {
+    transform: translate(-1px, -1px);
+    box-shadow: 3px 3px 0px rgba(46, 46, 46, 0.25);
+}
+
+.copy-btn:active {
+    transform: translate(1px, 1px);
+    box-shadow: 1px 1px 0px rgba(46, 46, 46, 0.2);
+}
+
+/* Loader Enhancements */
+#anthropic-skill-loader {
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 15px;
+    margin-top: 20px;
+}
+
+#anthropic-skill-loader p {
+    font-family: var(--font-primary);
+    color: var(--color-charcoal);
+    font-size: 1rem;
+    margin-top: 15px;
+}
+
+/* Structure Preview Styling */
+#anthropic-skill-preview {
+    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Mono', monospace;
+    font-size: 0.9rem;
+    line-height: 1.6;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 600px) {
+    .skill-type-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .checkbox-group {
+        flex-direction: column;
+    }
+
+    .checkbox-group label {
+        margin-left: 0 !important;
+    }
+
+    .skill-file-tabs {
+        flex-wrap: wrap;
+    }
+
+    .skill-file-tab {
+        flex: 1 1 auto;
+        text-align: center;
+    }
+}
+
+/* Agent Section Styles (fixing corrupted styles) */
+.agent-section {
+    margin-bottom: 20px;
+    background: rgba(255, 255, 255, 0.5);
+    padding: 15px;
+    border-radius: 10px;
+    border: 1px solid #ddd;
+    position: relative;
+}
+
+.agent-section h4 {
+    margin-top: 0;
+    color: var(--color-teal);
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.content-box {
+    margin-top: 5px;
+    white-space: pre-wrap;
+    font-size: 0.95rem;
+    color: #333;
+}
+
+.content-box.code-block {
+    font-family: monospace;
+    background: #f4f4f4;
+    padding: 10px;
+    border-radius: 5px;
+}
+
+.copy-btn-small {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: #eee;
+    border: none;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8rem;
+}
+
+.copy-btn-small:hover {
+    background: #ddd;
+}
+
+/* Thinking Animation */
+@keyframes pulse-ring {
+    0% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(0, 178, 169, 0.7);
+    }
+
+    70% {
+        transform: scale(1);
+        box-shadow: 0 0 0 10px rgba(0, 178, 169, 0);
+    }
+
+    100% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(0, 178, 169, 0);
+    }
+}
+
+.thinking {
+    animation: pulse-ring 2s infinite;
+    cursor: wait !important;
+    opacity: 0.8;
+}
+
+/* Loading Dots */
+.loading-dots:after {
+    content: '.';
+    animation: dots 1.5s steps(5, end) infinite;
+}
+
+@keyframes dots {
+
+    0%,
+    20% {
+        content: '.';
+    }
+
+    40% {
+        content: '..';
+    }
+
+    60% {
+        content: '...';
+    }
+
+    80%,
+    100% {
+        content: '';
+    }
+}
+
+/* Result Box Animation */
+.result-box {
+    animation: fadeInUp 0.5s ease-in-out;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Global Result Area Overrides */
+.result-area {
+    position: relative;
+    /* Ensure existing padding accommodates the absolute button */
+    padding-top: 50px;
+}
+
+/* Position the main copy button to the right */
+.result-area>.copy-btn {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background-color: var(--color-mustard);
+    z-index: 100;
+}
+
+/* Ensure title doesn't overlap */
+.result-area h3 {
+    margin-top: 0;
+}
+
+/* Fix for Anthropic Skill Result selector bug */
+#anthropic-skill-result.result-area {
+    display: block;
+    /* Ensure it overrides any specific hiding if needed */
+}

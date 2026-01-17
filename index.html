@@ -14,6 +14,7 @@
         rel="stylesheet">
 
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="anthropic-skills.css">
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
 </head>
 
@@ -31,7 +32,7 @@
         <nav class="nav-tabs">
             <button class="tab-btn active" data-tab="optimizer">Prompt Optimizer</button>
             <button class="tab-btn" data-tab="agent-builder">Agent Builder</button>
-            <button class="tab-btn" data-tab="skills-builder">Skills Builder</button>
+            <button class="tab-btn" data-tab="anthropic-skills">Anthropic Skills</button>
         </nav>
 
         <main>
@@ -104,14 +105,16 @@
         <p style="margin-bottom: 20px; color: #555;">Generate precise system instructions for your custom AI
             agents.</p>
 
-        <div class="input-group">
-            <label for="agent-platform" style="display:block; margin-bottom:10px; font-weight:700;">Target
-                Platform:</label>
-            <select id="agent-platform">
-                <option value="copilot">Microsoft Copilot Studio</option>
-                <option value="gemini">Google Gemini Gems</option>
-                <option value="chatgpt">ChatGPT Custom GPTs</option>
+        <div style="text-align: right;">
+            <select id="agent-model-select" style="display:inline-block; width: auto; margin-right: 10px;">
+                <option value="deepseek-r1-671b-thinking">DeepSeek R1 671B</option>
+                <option value="zai-org-glm-4.7">GLM 4.7</option>
+                <option value="gemini-3-pro-preview">Gemini 3 Pro Preview</option>
+                <option value="qwen3-4b">Qwen 3 4B</option>
+                <option value="qwen3-235b-a22b-thinking-2507">Qwen 3 235B Thinking</option>
+                <option value="venice-uncensored">Venice Uncensored</option>
             </select>
+            <button class="action-btn" id="build-agent-btn">BUILD INSTRUCTIONS 🛠️</button>
         </div>
 
         <div class="input-group">
@@ -119,12 +122,6 @@
                 Goal & Persona:</label>
             <textarea id="agent-description"
                 placeholder="Describe what your agent should do, its personality, and any specific constraints..."></textarea>
-        </div>
-
-        <div style="text-align: right;">
-            <button class="action-btn" id="build-agent-btn">BUILD INSTRUCTIONS 🛠️</button>
-        </div>
-
         </div>
 
         <div id="agent-loader" style="display: none; text-align: center; margin-top: 20px;">
@@ -163,50 +160,104 @@
         </div>
     </section>
 
-    <!-- SECTION 3: SKILLS BUILDER -->
-    <section id="skills-builder" class="section">
-        <h2>Create Agent Skills</h2>
-        <p style="margin-bottom: 20px; color: #555;">Generate backend skill definitions powered by Venice AI
-            models.</p>
+    <!-- SECTION 3: ANTHROPIC SKILLS BUILDER -->
+    <section id="anthropic-skills" class="section">
+        <h2>Anthropic Agent Skills</h2>
+        <p style="margin-bottom: 20px; color: #555;">Create modular .skill packages for Claude Code and Anthropic
+            agents. Skills are ZIP files containing SKILL.md with instructions, optional scripts, references, and
+            assets.</p>
 
-        <div class="input-group">
-            <label for="skill-name" style="display:block; margin-bottom:10px; font-weight:700;">Skill
-                Name:</label>
-            <input type="text" id="skill-name" placeholder="e.g. StockPriceFetcher">
+        <div class="skill-type-grid">
+            <div class="skill-type-card selected" data-skill-type="workflow">
+                <div class="skill-type-icon">🔄</div>
+                <div class="skill-type-name">Workflow</div>
+                <div class="skill-type-desc">Multi-step processes</div>
+            </div>
+            <div class="skill-type-card" data-skill-type="tool">
+                <div class="skill-type-icon">🔧</div>
+                <div class="skill-type-name">Tool</div>
+                <div class="skill-type-desc">Format handlers & APIs</div>
+            </div>
+            <div class="skill-type-card" data-skill-type="reference">
+                <div class="skill-type-icon">📚</div>
+                <div class="skill-type-name">Reference</div>
+                <div class="skill-type-desc">Guidelines & standards</div>
+            </div>
+            <div class="skill-type-card" data-skill-type="capabilities">
+                <div class="skill-type-icon">⚡</div>
+                <div class="skill-type-name">Capabilities</div>
+                <div class="skill-type-desc">Extend agent abilities</div>
+            </div>
         </div>
 
         <div class="input-group">
-            <label for="skill-description" style="display:block; margin-bottom:10px; font-weight:700;">What
+            <label for="anthropic-skill-name" style="display:block; margin-bottom:10px; font-weight:700;">Skill Name
+                (kebab-case):</label>
+            <input type="text" id="anthropic-skill-name"
+                placeholder="e.g. clinical-trial-analyzer, pdf-handler, brand-guidelines">
+        </div>
+
+        <div class="input-group">
+            <label for="anthropic-skill-description" style="display:block; margin-bottom:10px; font-weight:700;">What
                 should this skill do?</label>
-            <textarea id="skill-description"
-                placeholder="Describe the API or function this skill should execute..."></textarea>
+            <textarea id="anthropic-skill-description"
+                placeholder="Describe the skill's purpose, when it should be used, and what capabilities it provides. Be specific about input/output formats, workflows, or guidelines it should contain..."></textarea>
+        </div>
+
+        <div class="checkbox-group" style="margin-bottom: 15px;">
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <input type="checkbox" id="include-scripts" checked>
+                <span>Include Python/Bash scripts</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-left: 20px;">
+                <input type="checkbox" id="include-references">
+                <span>Include reference docs</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-left: 20px;">
+                <input type="checkbox" id="include-assets">
+                <span>Include assets folder</span>
+            </label>
         </div>
 
         <div style="text-align: right;">
-            <button class="action-btn" id="fetch-venice-models-btn"
-                style="font-size: 0.9rem; background: var(--color-teal); color: white;">Refresh Venice
-                Models</button>
-            <p id="venice-status" style="font-size: 0.8rem; display: inline-block; margin-right: 10px;">Models
-                loaded: 0</p>
-            <button class="action-btn" id="build-skill-btn">GENERATE SKILL ⚡</button>
+            <button class="action-btn secondary" id="analyze-skill-btn" style="font-size: 0.9rem;">ANALYZE REQUIREMENTS
+                🔍</button>
+            <button class="action-btn" id="build-anthropic-skill-btn">GENERATE SKILL PACKAGE 📦</button>
         </div>
 
-        <div id="skill-loader" style="display: none; text-align: center;">
+        <div id="anthropic-skill-loader" style="display: none; text-align: center; padding: 30px;">
             <div class="loader"></div>
-            <p>Brewing your skill code...</p>
-            <div id="skill-progress"
-                style="font-size: 2rem; font-weight: bold; color: var(--color-teal); margin-top: 10px;">0%</div>
+            <p id="anthropic-skill-status">Analyzing skill requirements...</p>
         </div>
 
-        <div id="skill-result" class="result-area" style="display: none;">
-            <button class="copy-btn" onclick="copyToClipboard('skill-output')">Copy Code</button>
-            <h3>Skill Package:</h3>
-            <div style="margin-top: 10px; margin-bottom: 10px;">
-                <button class="action-btn" id="download-skill-btn"
-                    style="font-size: 0.9rem; padding: 8px 16px;">Download .zip Package 📦</button>
+        <!-- Analysis Result -->
+        <div id="anthropic-skill-analysis" class="result-area" style="display: none; margin-top: 20px;">
+            <h3>📋 Skill Analysis</h3>
+            <div id="anthropic-skill-structure" class="analysis-content"></div>
+        </div>
+
+        <!-- Generated Skill Result -->
+        <div id="anthropic-skill-result" class="result-area" style="display: none;">
+            <h3>🎯 Generated Skill Package</h3>
+
+            <div class="skill-file-tabs">
+                <button class="skill-file-tab active" data-file="skill-md">SKILL.md</button>
+                <button class="skill-file-tab" data-file="scripts">Scripts</button>
+                <button class="skill-file-tab" data-file="structure">Structure</button>
             </div>
-            <pre id="skill-output"
-                style="white-space: pre-wrap; margin-top: 15px; background: #2E2E2E; color: #F4F1EA; padding: 15px; border-radius: 10px; overflow-x: auto; max-height: 400px;"></pre>
+
+            <div id="skill-file-content" class="skill-file-display">
+                <button class="copy-btn" onclick="copyToClipboard('anthropic-skill-preview')">Copy</button>
+                <pre id="anthropic-skill-preview"
+                    style="white-space: pre-wrap; background: #2E2E2E; color: #F4F1EA; padding: 15px; border-radius: 10px; overflow-x: auto; max-height: 500px; margin-top: 10px;"></pre>
+            </div>
+
+            <div style="margin-top: 15px; display: flex; gap: 10px; justify-content: flex-end;">
+                <button class="action-btn secondary" id="regenerate-skill-btn"
+                    style="font-size: 0.9rem; padding: 10px 20px;">Regenerate ↻</button>
+                <button class="action-btn" id="download-anthropic-skill-btn"
+                    style="font-size: 0.9rem; padding: 10px 20px;">Download .skill File 📥</button>
+            </div>
         </div>
     </section>
 

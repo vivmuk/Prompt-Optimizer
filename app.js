@@ -23,27 +23,97 @@ document.addEventListener('DOMContentLoaded', () => {
     const generatedAnswer = document.getElementById('generated-answer');
 
     // Agent Builder
-    const agentPlatformSelect = document.getElementById('agent-platform');
+
     const agentDescriptionInput = document.getElementById('agent-description');
+    const agentModelSelect = document.getElementById('agent-model-select');
     const buildAgentBtn = document.getElementById('build-agent-btn');
     const agentResult = document.getElementById('agent-result');
     const agentOutput = document.getElementById('agent-output');
     const agentLoader = document.getElementById('agent-loader');
     const agentProgress = document.getElementById('agent-progress');
 
-    // Skills Builder
-    const skillNameInput = document.getElementById('skill-name');
-    const skillDescriptionInput = document.getElementById('skill-description');
-    const fetchVeniceModelsBtn = document.getElementById('fetch-venice-models-btn');
-    const veniceStatus = document.getElementById('venice-status');
-    const buildSkillBtn = document.getElementById('build-skill-btn');
-    const skillLoader = document.getElementById('skill-loader');
-    const skillProgress = document.getElementById('skill-progress');
-    const skillResult = document.getElementById('skill-result');
-    const skillOutput = document.getElementById('skill-output');
-    const downloadSkillBtn = document.getElementById('download-skill-btn');
 
     const toast = document.getElementById('toast');
+
+    // Anthropic Skills Builder
+    const anthropicSkillNameInput = document.getElementById('anthropic-skill-name');
+    const anthropicSkillDescriptionInput = document.getElementById('anthropic-skill-description');
+    const anthropicSkillTypeSelect = document.getElementById('anthropic-skill-type');
+    const analyzeSkillBtn = document.getElementById('analyze-skill-btn');
+    const buildAnthropicSkillBtn = document.getElementById('build-anthropic-skill-btn');
+    const anthropicSkillLoader = document.getElementById('anthropic-skill-loader');
+    const anthropicSkillResult = document.getElementById('anthropic-skill-result');
+    const anthropicSkillPreview = document.getElementById('anthropic-skill-preview');
+    const downloadAnthropicSkillBtn = document.getElementById('download-anthropic-skill-btn');
+    const anthropicSkillAnalysis = document.getElementById('anthropic-skill-analysis');
+    const anthropicSkillStructure = document.getElementById('anthropic-skill-structure');
+
+    let currentAnthropicSkill = null; // Store generated Anthropic skill
+
+    // --- HELPER: Load Venice Models ---
+    async function loadVeniceModels() {
+        try {
+            console.log('Fetching Venice models...');
+            const response = await fetch('/api/models');
+
+            if (!response.ok) {
+                throw new Error(`Failed to fetch models: ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            if (data && data.data && Array.isArray(data.data)) {
+                loadedModels = data.data;
+                console.log(`Loaded ${loadedModels.length} Venice models`);
+
+                // Populate model dropdowns with fetched models
+                populateModelDropdowns();
+
+                showToast(`Loaded ${loadedModels.length} Venice models!`);
+                return true;
+            } else {
+                throw new Error('Invalid response format');
+            }
+        } catch (error) {
+            console.error('Error loading Venice models:', error);
+            showToast('Using default models.');
+
+            // Fallback to default models
+            loadedModels = [
+                { id: 'deepseek-r1-671b-thinking', name: 'DeepSeek R1 671B' },
+                { id: 'zai-org-glm-4.7', name: 'GLM 4.7' },
+                { id: 'gemini-3-pro-preview', name: 'Gemini 3 Pro Preview' },
+                { id: 'qwen3-4b', name: 'Qwen 3 4B' },
+                { id: 'qwen3-235b-a22b-thinking-2507', name: 'Qwen 3 235B Thinking' },
+                { id: 'venice-uncensored', name: 'Venice Uncensored' }
+            ];
+            return false;
+        }
+    }
+
+    // --- HELPER: Populate Model Dropdowns ---
+    function populateModelDropdowns() {
+        if (loadedModels.length === 0) return;
+
+        // Clear existing options
+        modelSelect.innerHTML = '';
+        agentModelSelect.innerHTML = '';
+
+        // Populate both dropdowns with fetched models
+        loadedModels.forEach(model => {
+            const optionForOptimizer = document.createElement('option');
+            optionForOptimizer.value = model.id;
+            optionForOptimizer.textContent = model.name || model.id;
+            modelSelect.appendChild(optionForOptimizer);
+
+            const optionForAgent = document.createElement('option');
+            optionForAgent.value = model.id;
+            optionForAgent.textContent = model.name || model.id;
+            agentModelSelect.appendChild(optionForAgent);
+        });
+
+        console.log('Model dropdowns populated with latest models');
+    }
 
     // --- TAB SWITCHING ---
     tabs.forEach(tab => {
@@ -153,8 +223,9 @@ document.addEventListener('DOMContentLoaded', () => {
         systemPrompt += `\n\nReturn ONLY the optimized prompt.`;
 
         try {
+            const selectedModel = modelSelect.value;
             const response = await callApi('/api/chat', {
-                model: "llama-3.3-70b",
+                model: selectedModel,
                 venice_parameters: {
                     include_venice_system_prompt: true,
                     enable_web_search: "off"
@@ -212,7 +283,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- FEATURE 2: AGENT BUILDER ---
     // --- FEATURE 2: AGENT BUILDER ---
     buildAgentBtn.addEventListener('click', async () => {
-        const platform = agentPlatformSelect.value;
+        const platform = 'chatgpt'; // Default since selector removed in favor of model selector
         const description = agentDescriptionInput.value.trim();
 
         if (!description) return showToast('Please describe your agent.');
@@ -255,8 +326,9 @@ document.addEventListener('DOMContentLoaded', () => {
         Wrap the response in a JSON code block.`;
 
         try {
+            const selectedModel = agentModelSelect.value;
             const response = await callApi('/api/chat', {
-                model: "llama-3.3-70b",
+                model: selectedModel,
                 venice_parameters: { include_venice_system_prompt: true },
                 messages: [
                     { role: "system", content: systemPrompt },
@@ -331,134 +403,523 @@ document.addEventListener('DOMContentLoaded', () => {
         navigator.clipboard.writeText(text).then(() => showToast('Copied to clipboard!'));
     };
 
-    // --- FEATURE 3: SKILLS BUILDER (UPDATED) ---
-    fetchVeniceModelsBtn.addEventListener('click', async () => {
-        loadedModels = []; // Reset to force reload
-        await loadVeniceModels();
+    // --- FEATURE 3: ANTHROPIC SKILLS BUILDER ---
+    let selectedSkillType = 'workflow';
+
+    // Skill type card selection
+    const skillTypeCards = document.querySelectorAll('.skill-type-card');
+    skillTypeCards.forEach(card => {
+        card.addEventListener('click', () => {
+            skillTypeCards.forEach(c => c.classList.remove('selected'));
+            card.classList.add('selected');
+            selectedSkillType = card.dataset.skillType;
+        });
     });
 
-    buildSkillBtn.addEventListener('click', async () => {
-        const name = skillNameInput.value.trim();
-        const description = skillDescriptionInput.value.trim();
+    // Skill file tabs
+    const skillFileTabs = document.querySelectorAll('.skill-file-tab');
+    skillFileTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            skillFileTabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            displaySkillFile(tab.dataset.file);
+        });
+    });
 
-        if (!name || !description) return showToast('Details required.');
+    function displaySkillFile(fileType) {
+        if (!currentAnthropicSkill) return;
 
-        // Initialize UI
-        skillResult.style.display = 'none';
-        skillLoader.style.display = 'block';
-        skillProgress.innerText = '0%';
+        let content = '';
+        switch (fileType) {
+            case 'skill-md':
+                content = currentAnthropicSkill.skillMd || 'No SKILL.md content generated';
+                break;
+            case 'scripts':
+                if (currentAnthropicSkill.scripts && currentAnthropicSkill.scripts.length > 0) {
+                    content = currentAnthropicSkill.scripts.map(s =>
+                        `=== ${s.filename} ===\n${s.content}`
+                    ).join('\n\n');
+                } else {
+                    content = 'No scripts included in this skill.';
+                }
+                break;
+            case 'structure':
+                content = generateStructurePreview();
+                break;
+        }
+        anthropicSkillPreview.textContent = content;
+    }
 
-        let progress = 0;
-        const interval = setInterval(() => {
-            if (progress < 90) {
-                progress += Math.floor(Math.random() * 5) + 1;
-                if (progress > 90) progress = 90;
-                skillProgress.innerText = `${progress}%`;
+    function generateStructurePreview() {
+        if (!currentAnthropicSkill) return '';
+
+        const name = currentAnthropicSkill.name || 'skill-name';
+        let structure = `${name}/\n├── SKILL.md\n`;
+
+        if (currentAnthropicSkill.scripts && currentAnthropicSkill.scripts.length > 0) {
+            structure += `├── scripts/\n`;
+            currentAnthropicSkill.scripts.forEach((s, i) => {
+                const isLast = i === currentAnthropicSkill.scripts.length - 1 && !currentAnthropicSkill.references && !currentAnthropicSkill.assets;
+                structure += `│   ${isLast ? '└' : '├'}── ${s.filename}\n`;
+            });
+        }
+
+        if (currentAnthropicSkill.references && currentAnthropicSkill.references.length > 0) {
+            structure += `├── references/\n`;
+            currentAnthropicSkill.references.forEach((r, i) => {
+                const isLast = i === currentAnthropicSkill.references.length - 1 && !currentAnthropicSkill.assets;
+                structure += `│   ${isLast ? '└' : '├'}── ${r.filename}\n`;
+            });
+        }
+
+        if (currentAnthropicSkill.assets) {
+            structure += `└── assets/\n`;
+            structure += `    └── (placeholder for templates, images, fonts)\n`;
+        }
+
+        return structure;
+    }
+
+    // Analyze button - provides skill analysis before full generation
+    if (analyzeSkillBtn) {
+        analyzeSkillBtn.addEventListener('click', async () => {
+            const name = anthropicSkillNameInput.value.trim();
+            const description = anthropicSkillDescriptionInput.value.trim();
+
+            if (!name || !description) {
+                return showToast('Please provide skill name and description.');
             }
-        }, 300);
 
-        try {
-            const systemPrompt = `You are an expert Claude Agent Skills Architect. Your task is to generate a comprehensive 'SKILL.md' file based on the user's request.
+            analyzeSkillBtn.disabled = true;
+            analyzeSkillBtn.classList.add('thinking');
+            analyzeSkillBtn.textContent = 'Analyzing...';
 
-            REFERENCE GUIDE SUMMARY:
-            - Agent Skills are modular packages extending Claude's capabilities.
-            - Structure: YAML frontmatter (name, description) + formatting Markdown instructions.
-            - Frontmatter 'description' is CRITICAL: must state WHAT it does and WHEN to use it (triggers).
-            
-            INPUT:
-            Skill Name: "${name}"
-            Goal/Description: "${description}"
+            const includeScripts = document.getElementById('include-scripts').checked;
+            const includeReferences = document.getElementById('include-references').checked;
+            const includeAssets = document.getElementById('include-assets').checked;
 
-            OUTPUT FORMAT:
-            Return a JSON object with this exact structure:
-            {
-                "skill_name": "clean-kebab-case-name",
-                "skill_content": "...full escaped markdown content of SKILL.md including YAML frontmatter...",
-                "readme_tips": "Short bullet points on how to use this skill."
-            }
+            const systemPrompt = `You are an expert at designing Anthropic Agent Skills. Analyze this skill request and provide a structured plan.
 
-            CONTENT RULES:
-            1. 'name' in YAML must be lowercase, numbers, hyphens only.
-            2. 'description' in YAML must follow the pattern: "[WHAT is does]. Use when [TRIGGERS]."
-            3. Include clear headers: # Title, ## Instructions, ## Examples.
-            `;
+An Anthropic Skill is a modular package containing:
+- SKILL.md: YAML frontmatter (name, description) + Markdown instructions
+- Optional scripts/: Python or Bash scripts for deterministic operations
+- Optional references/: Documentation files to load into context
+- Optional assets/: Templates, images, fonts used in outputs
+
+Skill Types:
+- workflow: Multi-step processes (document creation, data analysis pipelines)
+- tool: Format handlers (PDF, Excel, API integrations)
+- reference: Guidelines and standards (brand guidelines, coding standards)
+- capabilities: Extend agent abilities with new features
+
+Return a JSON object with this structure:
+{
+    "skill_name": "kebab-case-name",
+    "description": "One sentence describing when to use this skill",
+    "skill_type": "${selectedSkillType}",
+    "needs_scripts": ${includeScripts},
+    "needs_references": ${includeReferences},
+    "needs_assets": ${includeAssets},
+    "suggested_scripts": ["script1.py", "script2.sh"],
+    "suggested_references": ["guide.md", "examples.md"],
+    "key_capabilities": ["capability1", "capability2", "capability3"],
+    "workflow_steps": ["step1", "step2", "step3"],
+    "complexity": "simple|moderate|complex",
+    "estimated_skill_md_lines": 100
+}
+
+Wrap the response in a JSON code block.`;
 
             const response = await callApi('/api/chat', {
-                model: "llama-3.3-70b",
-                venice_parameters: { include_venice_system_prompt: true },
+                model: "zai-org-glm-4.7",
+                venice_parameters: {
+                    include_venice_system_prompt: true,
+                    enable_web_search: "off"
+                },
                 messages: [
                     { role: "system", content: systemPrompt },
-                    { role: "user", content: "Generate the SKILL.md file now." }
+                    { role: "user", content: `Analyze this skill request:\nName: ${name}\nDescription: ${description}\nType: ${selectedSkillType}` }
                 ]
             });
 
-            // Finish Animation
-            clearInterval(interval);
-            skillProgress.innerText = '100%';
+            analyzeSkillBtn.disabled = false;
+            analyzeSkillBtn.classList.remove('thinking');
+            analyzeSkillBtn.textContent = 'ANALYZE REQUIREMENTS 🔍';
 
-            setTimeout(() => {
-                skillLoader.style.display = 'none';
+            if (response && response.choices) {
+                let content = response.choices[0].message.content;
 
-                if (response && response.choices) {
-                    let content = response.choices[0].message.content;
-                    // Clean up markdown block if present
-                    const jsonStart = content.indexOf('{');
-                    const jsonEnd = content.lastIndexOf('}');
+                // Extract JSON from response
+                const jsonStart = content.indexOf('{');
+                const jsonEnd = content.lastIndexOf('}');
 
-                    if (jsonStart !== -1 && jsonEnd !== -1) {
-                        content = content.substring(jsonStart, jsonEnd + 1);
-                    }
-
+                if (jsonStart !== -1 && jsonEnd !== -1) {
                     try {
-                        const skillData = JSON.parse(content);
-                        currentSkillData = skillData;
+                        const analysis = JSON.parse(content.substring(jsonStart, jsonEnd + 1));
 
-                        skillOutput.innerText = skillData.skill_content;
-                        skillResult.style.display = 'block';
-                        showToast('Agent Skill Generated!');
+                        // Display analysis
+                        let analysisHtml = `
+                            <div class="analysis-item"><strong>Skill Name:</strong> ${analysis.skill_name}</div>
+                            <div class="analysis-item"><strong>Type:</strong> ${analysis.skill_type}</div>
+                            <div class="analysis-item"><strong>Complexity:</strong> ${analysis.complexity}</div>
+                            <div class="analysis-item"><strong>Est. SKILL.md Lines:</strong> ~${analysis.estimated_skill_md_lines}</div>
+                            <div class="analysis-item"><strong>Key Capabilities:</strong>
+                                <ul>${analysis.key_capabilities.map(c => `<li>${c}</li>`).join('')}</ul>
+                            </div>
+                        `;
 
-                        // Auto-scroll to result
-                        skillResult.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        if (analysis.workflow_steps && analysis.workflow_steps.length > 0) {
+                            analysisHtml += `
+                                <div class="analysis-item"><strong>Workflow Steps:</strong>
+                                    <ol>${analysis.workflow_steps.map(s => `<li>${s}</li>`).join('')}</ol>
+                                </div>
+                            `;
+                        }
 
+                        if (analysis.suggested_scripts && analysis.suggested_scripts.length > 0) {
+                            analysisHtml += `
+                                <div class="analysis-item"><strong>Suggested Scripts:</strong> ${analysis.suggested_scripts.join(', ')}</div>
+                            `;
+                        }
+
+                        anthropicSkillStructure.innerHTML = analysisHtml;
+                        anthropicSkillAnalysis.style.display = 'block';
+                        showToast('Analysis complete!');
                     } catch (e) {
-                        console.error('JSON Parse Error', e);
-                        skillOutput.innerText = response.choices[0].message.content; // Fallback
-                        currentSkillData = { raw: response.choices[0].message.content };
-                        skillResult.style.display = 'block';
-                        showToast('Skill Generated (Raw)');
-                        skillResult.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        console.error('JSON Parse Error:', e);
+                        anthropicSkillStructure.innerHTML = `<pre>${content}</pre>`;
+                        anthropicSkillAnalysis.style.display = 'block';
                     }
                 }
-            }, 500); // Short delay to show 100%
+            }
+        });
+    }
 
-        } catch (err) {
-            clearInterval(interval);
-            skillLoader.style.display = 'none';
-            showToast('Error generating skill');
-            console.error(err);
-        }
-    });
+    // Main build button - generates full skill package
+    if (buildAnthropicSkillBtn) {
+        buildAnthropicSkillBtn.addEventListener('click', async () => {
+            const name = anthropicSkillNameInput.value.trim();
+            const description = anthropicSkillDescriptionInput.value.trim();
 
-    downloadSkillBtn.addEventListener('click', () => {
-        if (!currentSkillData) return;
+            if (!name || !description) {
+                return showToast('Please provide skill name and description.');
+            }
 
-        let fileContent = "";
-        let fileName = skillNameInput.value || 'skill';
+            // Validate kebab-case name
+            const kebabCaseRegex = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+            if (!kebabCaseRegex.test(name)) {
+                return showToast('Skill name should be kebab-case (e.g., my-skill-name)');
+            }
 
-        if (currentSkillData.raw) {
-            fileContent = currentSkillData.raw;
-        } else if (currentSkillData.skill_content) {
-            // New Format: SKILL.md
-            fileContent = currentSkillData.skill_content;
-            fileName = currentSkillData.skill_name || fileName;
-        } else {
-            // Legacy Format (fallback)
-            fileContent = `SKILL PACKAGE: ${fileName}\n\n` +
-                `--- tool.py ---\n${currentSkillData.tool_code}\n\n` +
-                `--- requirements.txt ---\n${currentSkillData.requirements}\n\n` +
-                `--- README.md ---\n${currentSkillData.readme}\n`;
-        }
+            buildAnthropicSkillBtn.disabled = true;
+            buildAnthropicSkillBtn.classList.add('thinking');
+            buildAnthropicSkillBtn.textContent = 'Generating...';
+            anthropicSkillLoader.style.display = 'block';
+            anthropicSkillResult.style.display = 'none';
 
-        downloadMockZip(fileName, fileContent);
-    });
+            const includeScripts = document.getElementById('include-scripts').checked;
+            const includeReferences = document.getElementById('include-references').checked;
+            const includeAssets = document.getElementById('include-assets').checked;
+
+            const statusEl = document.getElementById('anthropic-skill-status');
+
+            // Step 1: Generate SKILL.md content
+            statusEl.textContent = 'Generating SKILL.md content...';
+
+            const skillMdPrompt = `You are an expert at creating Anthropic Agent Skills. Generate a complete SKILL.md file.
+
+SKILL.md Structure:
+1. YAML Frontmatter:
+---
+name: skill-name
+description: When to use this skill and what it does
+---
+
+2. Markdown Body with instructions for Claude/AI agents:
+- Overview (1-2 sentences)
+- Main workflow or capabilities
+- Step-by-step procedures
+- Examples of usage
+- References to scripts/assets if applicable
+
+Guidelines:
+- Keep under 500 lines (progressive disclosure - put detailed info in references/)
+- Write in imperative form ("Read the file", "Parse the data")
+- Claude already knows a lot - only include non-obvious procedural knowledge
+- Be specific and actionable
+- For ${selectedSkillType} skills, focus on:
+  ${selectedSkillType === 'workflow' ? '- Step-by-step processes\n  - Decision points\n  - Error handling' : ''}
+  ${selectedSkillType === 'tool' ? '- Input/output formats\n  - API patterns\n  - Data transformation' : ''}
+  ${selectedSkillType === 'reference' ? '- Guidelines and standards\n  - Examples of correct usage\n  - Common mistakes to avoid' : ''}
+  ${selectedSkillType === 'capabilities' ? '- New abilities being added\n  - When to use each capability\n  - Integration with existing tools' : ''}
+
+Skill Details:
+Name: ${name}
+Description: ${description}
+Type: ${selectedSkillType}
+Include Scripts: ${includeScripts}
+Include References: ${includeReferences}
+Include Assets: ${includeAssets}
+
+Return ONLY the complete SKILL.md content (frontmatter + body), no additional text or explanation.`;
+
+            const skillMdResponse = await callApi('/api/chat', {
+                model: "zai-org-glm-4.7",
+                venice_parameters: {
+                    include_venice_system_prompt: true,
+                    enable_web_search: "off"
+                },
+                messages: [
+                    { role: "system", content: skillMdPrompt },
+                    { role: "user", content: "Generate the complete SKILL.md file." }
+                ]
+            });
+
+            let skillMdContent = '';
+            if (skillMdResponse && skillMdResponse.choices) {
+                skillMdContent = skillMdResponse.choices[0].message.content;
+                // Clean up any markdown code block wrappers
+                skillMdContent = skillMdContent.replace(/^```(?:markdown|md|yaml)?\n?/i, '').replace(/\n?```$/i, '').trim();
+            }
+
+            // Step 2: Generate scripts if needed
+            let scripts = [];
+            if (includeScripts) {
+                statusEl.textContent = 'Generating scripts...';
+
+                const scriptsPrompt = `Generate Python/Bash scripts for this Anthropic Skill.
+
+Skill: ${name}
+Description: ${description}
+Type: ${selectedSkillType}
+
+Return a JSON array of script objects:
+[
+    {
+        "filename": "script_name.py",
+        "content": "#!/usr/bin/env python3\\n# Full script content here..."
+    }
+]
+
+Guidelines:
+- Create practical, executable scripts
+- Include proper shebang lines
+- Add helpful comments
+- Handle errors gracefully
+- Make scripts modular and reusable
+- For Python: use type hints, follow PEP 8
+- For Bash: use set -e for error handling
+
+Wrap the response in a JSON code block.`;
+
+                const scriptsResponse = await callApi('/api/chat', {
+                    model: "zai-org-glm-4.7",
+                    venice_parameters: {
+                        include_venice_system_prompt: true,
+                        enable_web_search: "off"
+                    },
+                    messages: [
+                        { role: "system", content: scriptsPrompt },
+                        { role: "user", content: "Generate the scripts." }
+                    ]
+                });
+
+                if (scriptsResponse && scriptsResponse.choices) {
+                    let scriptsContent = scriptsResponse.choices[0].message.content;
+                    const jsonStart = scriptsContent.indexOf('[');
+                    const jsonEnd = scriptsContent.lastIndexOf(']');
+
+                    if (jsonStart !== -1 && jsonEnd !== -1) {
+                        try {
+                            scripts = JSON.parse(scriptsContent.substring(jsonStart, jsonEnd + 1));
+                        } catch (e) {
+                            console.error('Scripts JSON Parse Error:', e);
+                        }
+                    }
+                }
+            }
+
+            // Step 3: Generate references if needed
+            let references = [];
+            if (includeReferences) {
+                statusEl.textContent = 'Generating reference documentation...';
+
+                const referencesPrompt = `Generate reference documentation files for this Anthropic Skill.
+
+Skill: ${name}
+Description: ${description}
+Type: ${selectedSkillType}
+
+Return a JSON array of reference document objects:
+[
+    {
+        "filename": "guide.md",
+        "content": "# Guide Title\\n\\nContent here..."
+    }
+]
+
+Guidelines:
+- Create detailed, helpful documentation
+- Include examples and best practices
+- Use clear markdown formatting
+- Make content scannable with headers
+
+Wrap the response in a JSON code block.`;
+
+                const referencesResponse = await callApi('/api/chat', {
+                    model: "zai-org-glm-4.7",
+                    venice_parameters: {
+                        include_venice_system_prompt: true,
+                        enable_web_search: "off"
+                    },
+                    messages: [
+                        { role: "system", content: referencesPrompt },
+                        { role: "user", content: "Generate the reference documentation." }
+                    ]
+                });
+
+                if (referencesResponse && referencesResponse.choices) {
+                    let refsContent = referencesResponse.choices[0].message.content;
+                    const jsonStart = refsContent.indexOf('[');
+                    const jsonEnd = refsContent.lastIndexOf(']');
+
+                    if (jsonStart !== -1 && jsonEnd !== -1) {
+                        try {
+                            references = JSON.parse(refsContent.substring(jsonStart, jsonEnd + 1));
+                        } catch (e) {
+                            console.error('References JSON Parse Error:', e);
+                        }
+                    }
+                }
+            }
+
+            // Store the complete skill data
+            currentAnthropicSkill = {
+                name: name,
+                description: description,
+                skillType: selectedSkillType,
+                skillMd: skillMdContent,
+                scripts: scripts,
+                references: references,
+                assets: includeAssets
+            };
+
+            // Display the result
+            anthropicSkillLoader.style.display = 'none';
+            anthropicSkillResult.style.display = 'block';
+
+            // Show SKILL.md by default
+            displaySkillFile('skill-md');
+
+            buildAnthropicSkillBtn.disabled = false;
+            buildAnthropicSkillBtn.classList.remove('thinking');
+            buildAnthropicSkillBtn.textContent = 'GENERATE SKILL PACKAGE 📦';
+
+            showToast('Skill package generated!');
+        });
+    }
+
+    // Regenerate button
+    const regenerateSkillBtn = document.getElementById('regenerate-skill-btn');
+    if (regenerateSkillBtn) {
+        regenerateSkillBtn.addEventListener('click', () => {
+            if (buildAnthropicSkillBtn) {
+                buildAnthropicSkillBtn.click();
+            }
+        });
+    }
+
+    // Download .skill file
+    if (downloadAnthropicSkillBtn) {
+        downloadAnthropicSkillBtn.addEventListener('click', async () => {
+            if (!currentAnthropicSkill) {
+                return showToast('No skill to download. Generate one first!');
+            }
+
+            downloadAnthropicSkillBtn.disabled = true;
+            downloadAnthropicSkillBtn.textContent = 'Packaging...';
+
+            try {
+                // Try server-side ZIP generation first
+                const response = await fetch('/api/skill-package', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(currentAnthropicSkill)
+                });
+
+                if (response.ok) {
+                    // Download the ZIP file
+                    const blob = await response.blob();
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `${currentAnthropicSkill.name}.skill`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    showToast('Skill package downloaded!');
+                } else {
+                    throw new Error('Server unavailable');
+                }
+            } catch (error) {
+                console.log('Falling back to text download:', error);
+
+                // Fallback to text file download
+                let packageContent = `ANTHROPIC SKILL PACKAGE: ${currentAnthropicSkill.name}\n`;
+                packageContent += `${'='.repeat(50)}\n\n`;
+                packageContent += `Type: ${currentAnthropicSkill.skillType}\n`;
+                packageContent += `Description: ${currentAnthropicSkill.description}\n\n`;
+
+                packageContent += `${'='.repeat(50)}\n`;
+                packageContent += `SKILL.md\n`;
+                packageContent += `${'='.repeat(50)}\n\n`;
+                packageContent += currentAnthropicSkill.skillMd + '\n\n';
+
+                if (currentAnthropicSkill.scripts && currentAnthropicSkill.scripts.length > 0) {
+                    packageContent += `${'='.repeat(50)}\n`;
+                    packageContent += `SCRIPTS\n`;
+                    packageContent += `${'='.repeat(50)}\n\n`;
+
+                    currentAnthropicSkill.scripts.forEach(s => {
+                        packageContent += `--- ${s.filename} ---\n`;
+                        packageContent += s.content + '\n\n';
+                    });
+                }
+
+                if (currentAnthropicSkill.references && currentAnthropicSkill.references.length > 0) {
+                    packageContent += `${'='.repeat(50)}\n`;
+                    packageContent += `REFERENCES\n`;
+                    packageContent += `${'='.repeat(50)}\n\n`;
+
+                    currentAnthropicSkill.references.forEach(r => {
+                        packageContent += `--- ${r.filename} ---\n`;
+                        packageContent += r.content + '\n\n';
+                    });
+                }
+
+                packageContent += `\n${'='.repeat(50)}\n`;
+                packageContent += `STRUCTURE\n`;
+                packageContent += `${'='.repeat(50)}\n\n`;
+                packageContent += generateStructurePreview();
+
+                // Download the file
+                const element = document.createElement('a');
+                const file = new Blob([packageContent], { type: 'text/plain' });
+                element.href = URL.createObjectURL(file);
+                element.download = `${currentAnthropicSkill.name}.skill.txt`;
+                document.body.appendChild(element);
+                element.click();
+                document.body.removeChild(element);
+
+                showToast('Skill package downloaded (text format)!');
+            }
+
+            downloadAnthropicSkillBtn.disabled = false;
+            downloadAnthropicSkillBtn.textContent = 'Download .skill File 📥';
+        });
+    }
+
+    // --- INITIALIZE: Load Venice models on page load ---
+    loadVeniceModels();
 });

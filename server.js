@@ -1,13 +1,14 @@
 const express = require('express');
 const path = require('path');
 const cors = require('cors');
+const archiver = require('archiver');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '10mb' })); // Increased limit for skill packages
 app.use(express.static(path.join(__dirname, '.')));
 
 // --- HELPER: Get and Sanitize API Key ---
@@ -94,6 +95,64 @@ app.get('/api/models', async (req, res) => {
     } catch (error) {
         console.error('[SERVER] Exception:', error);
         res.status(500).json({ error: 'Failed to fetch models' });
+    }
+});
+
+// 4. Generate Skill Package (.skill ZIP file)
+app.post('/api/skill-package', async (req, res) => {
+    try {
+        const { name, description, skillType, skillMd, scripts, references, assets } = req.body;
+
+        if (!name || !skillMd) {
+            return res.status(400).json({ error: 'Skill name and SKILL.md content are required' });
+        }
+
+        // Set headers for ZIP download
+        res.setHeader('Content-Type', 'application/zip');
+        res.setHeader('Content-Disposition', `attachment; filename="${name}.skill"`);
+
+        // Create ZIP archive
+        const archive = archiver('zip', { zlib: { level: 9 } });
+
+        // Handle archive errors
+        archive.on('error', (err) => {
+            console.error('[SERVER] Archive Error:', err);
+            res.status(500).json({ error: 'Failed to create skill package' });
+        });
+
+        // Pipe archive to response
+        archive.pipe(res);
+
+        // Add SKILL.md to the root of skill folder
+        archive.append(skillMd, { name: `${name}/SKILL.md` });
+
+        // Add scripts if present
+        if (scripts && scripts.length > 0) {
+            scripts.forEach(script => {
+                archive.append(script.content, { name: `${name}/scripts/${script.filename}` });
+            });
+        }
+
+        // Add references if present
+        if (references && references.length > 0) {
+            references.forEach(ref => {
+                archive.append(ref.content, { name: `${name}/references/${ref.filename}` });
+            });
+        }
+
+        // Add assets placeholder if needed
+        if (assets) {
+            archive.append('# Assets Folder\n\nPlace templates, images, fonts, and other assets here.',
+                { name: `${name}/assets/.gitkeep` });
+        }
+
+        // Finalize the archive
+        await archive.finalize();
+
+        console.log(`[SERVER] Skill package "${name}.skill" generated successfully`);
+    } catch (error) {
+        console.error('[SERVER] Skill Package Error:', error);
+        res.status(500).json({ error: 'Failed to generate skill package' });
     }
 });
 
