@@ -20,7 +20,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const optimizerLoader = document.getElementById('optimizer-loader');
     const optimizerProgress = document.getElementById('optimizer-progress');
     const generateAnswerBtn = document.getElementById('generate-answer-btn');
+    const answerModelSelect = document.getElementById('answer-model-select'); // NEW
     const generatedAnswer = document.getElementById('generated-answer');
+    const optimizerInlineStatus = document.getElementById('optimizer-inline-status'); // NEW
 
     // Agent Builder
 
@@ -31,6 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const agentOutput = document.getElementById('agent-output');
     const agentLoader = document.getElementById('agent-loader');
     const agentProgress = document.getElementById('agent-progress');
+    const agentInlineStatus = document.getElementById('agent-inline-status'); // NEW
 
 
     const toast = document.getElementById('toast');
@@ -47,6 +50,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const downloadAnthropicSkillBtn = document.getElementById('download-anthropic-skill-btn');
     const anthropicSkillAnalysis = document.getElementById('anthropic-skill-analysis');
     const anthropicSkillStructure = document.getElementById('anthropic-skill-structure');
+    const anthropicInlineStatus = document.getElementById('anthropic-inline-status'); // NEW
+    const anthropicProgress = document.getElementById('anthropic-progress'); // Ensure this ID selector exists for new logic
 
     let currentAnthropicSkill = null; // Store generated Anthropic skill
 
@@ -98,6 +103,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Clear existing options
         modelSelect.innerHTML = '';
         agentModelSelect.innerHTML = '';
+        answerModelSelect.innerHTML = ''; // Clear new dropdown
 
         // Populate both dropdowns with fetched models
         loadedModels.forEach(model => {
@@ -110,6 +116,11 @@ document.addEventListener('DOMContentLoaded', () => {
             optionForAgent.value = model.id;
             optionForAgent.textContent = model.name || model.id;
             agentModelSelect.appendChild(optionForAgent);
+
+            const optionForAnswer = document.createElement('option');
+            optionForAnswer.value = model.id;
+            optionForAnswer.textContent = model.name || model.id;
+            answerModelSelect.appendChild(optionForAnswer);
         });
 
         console.log('Model dropdowns populated with latest models');
@@ -187,6 +198,7 @@ document.addEventListener('DOMContentLoaded', () => {
         optimizeBtn.disabled = true;
         optimizerResult.style.display = 'none';
         optimizerLoader.style.display = 'block';
+        optimizerInlineStatus.style.display = 'block'; // Show inline
         optimizerProgress.innerText = '0%';
 
         // Animation
@@ -241,6 +253,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             setTimeout(() => {
                 optimizerLoader.style.display = 'none';
+                optimizerInlineStatus.style.display = 'none'; // Hide inline
                 optimizeBtn.disabled = false;
 
                 if (response && response.choices) {
@@ -261,7 +274,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     generateAnswerBtn.addEventListener('click', async () => {
         const optimizedPrompt = optimizedOutput.innerText;
-        const selectedModel = modelSelect.value;
+        const selectedModel = answerModelSelect.value;
+
 
         generateAnswerBtn.textContent = 'Generating...';
         generatedAnswer.style.display = 'block';
@@ -292,6 +306,7 @@ document.addEventListener('DOMContentLoaded', () => {
         buildAgentBtn.disabled = true;
         agentResult.style.display = 'none';
         agentLoader.style.display = 'block';
+        agentInlineStatus.style.display = 'block'; // Show inline
         agentProgress.innerText = '0%';
 
         // Animation
@@ -341,6 +356,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             setTimeout(() => {
                 agentLoader.style.display = 'none';
+                agentInlineStatus.style.display = 'none'; // Hide inline
                 buildAgentBtn.disabled = false;
 
                 if (response && response.choices) {
@@ -615,7 +631,18 @@ Wrap the response in a JSON code block.`;
             buildAnthropicSkillBtn.classList.add('thinking');
             buildAnthropicSkillBtn.textContent = 'Generating...';
             anthropicSkillLoader.style.display = 'block';
+            buildAnthropicSkillBtn.textContent = 'Generating...';
+            anthropicSkillLoader.style.display = 'block';
+            anthropicInlineStatus.style.display = 'block'; // Show inline
             anthropicSkillResult.style.display = 'none';
+            if (anthropicProgress) anthropicProgress.innerText = '0%';
+
+            let progress = 0;
+            const progressInterval = setInterval(() => {
+                if (progress < 90) progress += Math.random() * 5;
+                if (progress > 90) progress = 90;
+                if (anthropicProgress) anthropicProgress.innerText = Math.floor(progress) + '%';
+            }, 300);
 
             const includeScripts = document.getElementById('include-scripts').checked;
             const includeReferences = document.getElementById('include-references').checked;
@@ -805,7 +832,11 @@ Wrap the response in a JSON code block.`;
             };
 
             // Display the result
+            // Display the result
+            clearInterval(progressInterval);
+            if (anthropicProgress) anthropicProgress.innerText = '100%';
             anthropicSkillLoader.style.display = 'none';
+            anthropicInlineStatus.style.display = 'none'; // Hide inline
             anthropicSkillResult.style.display = 'block';
 
             // Show SKILL.md by default
