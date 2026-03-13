@@ -211,28 +211,123 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }, 200);
 
-        // Context Engineering System Prompt
-        let systemPrompt = `You are a world-class prompt engineer. Transform this prompt for ${provider.toUpperCase()}.`;
+        // --- ADVANCED PROMPT ENGINEERING SYSTEM ---
+        // Build a comprehensive system prompt using modern techniques:
+        // CO-STAR (Context, Objective, Style, Tone, Audience, Response)
+        // RISEN (Role, Instructions, Steps, End Goal, Narrowing)
+        // Chain-of-Thought, XML structuring, few-shot, constraints, and format specs
 
-        // Provider Logic
+        let systemPrompt = '';
+
+        // Provider-specific optimization strategies
         if (provider === 'claude') {
-            systemPrompt += ` Use XML tags (<context>, <instruction>, <examples>) to structure the prompt. Claude loves structured data and XML.`;
+            systemPrompt = `You are a world-class prompt engineer specializing in Anthropic Claude models. Your mission is to transform a rough user input into a masterfully structured, production-ready prompt that will elicit Claude's best performance.
+
+Apply ALL of the following techniques:
+
+1. **ROLE ASSIGNMENT**: Open with a precise expert persona (e.g., "You are a senior software engineer with 15 years of experience in...").
+2. **XML STRUCTURE**: Wrap distinct sections in semantic XML tags. Use tags like <context>, <task>, <requirements>, <constraints>, <examples>, <output_format>, <thinking> as appropriate.
+3. **CHAIN-OF-THOUGHT**: For analytical or multi-step tasks, instruct Claude to reason before answering (e.g., "Think through this step by step inside <thinking> tags before providing your response").
+4. **SPECIFICITY**: Replace vague words with precise, measurable instructions. "Good code" → "production-ready, PEP-8 compliant Python with docstrings and error handling".
+5. **OUTPUT FORMAT**: Explicitly define the structure, length, tone, and format of the desired response.
+6. **POSITIVE + NEGATIVE CONSTRAINTS**: State both what to DO and what to AVOID.
+7. **SUCCESS CRITERIA**: Describe what an ideal, correct response looks like.
+8. **FEW-SHOT EXAMPLES**: If the task benefits from examples, add a brief <examples> section showing the input→output pattern.`;
+
         } else if (provider === 'gemini') {
-            systemPrompt += ` Use the PTCF (Persona, Task, Context, Format) framework. Be verbose and explicit.`;
+            systemPrompt = `You are a world-class prompt engineer specializing in Google Gemini models. Your mission is to transform a rough user input into a masterfully structured prompt using the CO-STAR framework and Gemini best practices.
+
+Apply ALL of the following techniques:
+
+**CO-STAR FRAMEWORK** — Structure every optimized prompt with these sections:
+- **C – Context**: Background information Gemini needs to understand the situation
+- **O – Objective**: The precise task, framed as a clear action verb + desired outcome
+- **S – Style**: The writing/reasoning style to adopt (academic, casual, technical, Socratic, etc.)
+- **T – Tone**: The emotional register (professional, empathetic, authoritative, encouraging)
+- **A – Audience**: Who this response is for (experts, beginners, executives, developers, etc.)
+- **R – Response**: Exact output format, length, and structure (bullet list, JSON, numbered steps, prose)
+
+Additional techniques:
+1. **MULTIMODAL AWARENESS**: Note if images, diagrams, or structured data would enhance the response.
+2. **EXPLICIT REASONING**: Add "First, reason through the problem, then provide your answer."
+3. **GROUNDING INSTRUCTIONS**: For factual tasks, specify "cite sources" or "note confidence level."
+4. **VERBOSITY CALIBRATION**: Specify the ideal response length (brief/detailed/comprehensive).`;
+
         } else if (provider === 'openai') {
-            systemPrompt += ` Use clear Markdown headers and a System Role definition. Focus on Chain of Thought.`;
+            systemPrompt = `You are a world-class prompt engineer specializing in OpenAI GPT models. Your mission is to transform a rough user input into a masterfully engineered prompt using OpenAI's proven best practices.
+
+Apply ALL of the following techniques:
+
+1. **SYSTEM + USER SPLIT**: Structure the output as a clearly delineated System Message followed by a User Message.
+   - System Message: Define the AI's persona, expertise, rules, and output format
+   - User Message: The specific request with context and constraints
+2. **CHAIN-OF-THOUGHT (CoT)**: For reasoning tasks, add "Let's think step by step." or "Work through this systematically before answering."
+3. **MARKDOWN STRUCTURE**: Use ## headers, bullet lists, and code blocks to organize complex prompts.
+4. **DELIMITERS**: Use triple backticks \`\`\`, triple quotes """, or XML tags to clearly separate inputs from instructions.
+5. **ROLE + PERSONA**: Open with a concrete expert role (e.g., "You are a senior data scientist at a Fortune 500 company...").
+6. **FEW-SHOT EXAMPLES**: For classification, formatting, or stylistic tasks, include 2–3 examples in the format:
+   Input: [example] → Output: [example]
+7. **OUTPUT SPECIFICATION**: Define exact format (JSON, markdown table, numbered list, prose) and length.
+8. **NEGATIVE CONSTRAINTS**: Explicitly list what the model should NOT do.`;
+
         } else {
-            systemPrompt += ` Ensure clarity, specificity, and structured output.`;
+            systemPrompt = `You are a world-class prompt engineer. Your mission is to transform a rough user input into a masterfully crafted, model-agnostic prompt using the RISEN framework and universal prompt engineering best practices.
+
+Apply ALL of the following techniques using the RISEN framework:
+
+**RISEN FRAMEWORK**:
+- **R – Role**: Assign a precise expert persona with relevant credentials and experience
+- **I – Instructions**: Give clear, unambiguous, step-by-step directions
+- **S – Steps**: Break complex tasks into an ordered sequence of sub-tasks
+- **E – End Goal**: State the exact desired outcome and what success looks like
+- **N – Narrowing**: Add constraints that scope and focus the response (format, length, style, what to avoid)
+
+Additional universal techniques:
+1. **SPECIFICITY OVER VAGUENESS**: Replace every abstract word with a concrete, measurable alternative
+2. **CONTEXT INJECTION**: Add all background information needed to answer without further clarification
+3. **OUTPUT CONTRACT**: Define the exact structure, format, and length of the expected response
+4. **CONSTRAINT PAIRS**: For each thing to do, also specify the corresponding thing to avoid
+5. **VERIFICATION STEP**: End with "Before responding, verify your answer meets: [success criteria]"`;
         }
 
-        // Category Logic
+        // Category-specific enhancements
         if (selectedCategory === 'coding') {
-            systemPrompt += ` Focus on production-ready code, reliability, and edge cases.`;
+            systemPrompt += `
+
+**CODING CATEGORY REQUIREMENTS** — The optimized prompt must also demand:
+- Language, framework, and version specification (e.g., "Python 3.11+", "React 18")
+- Code quality standards: type hints, docstrings, error handling, logging
+- Edge case coverage: null inputs, boundary values, concurrency, security
+- Testing requirements: unit tests, example usage, expected output
+- Performance considerations: time/space complexity where relevant
+- "Explain your approach before writing the code" for algorithmic tasks`;
+
         } else if (selectedCategory === 'creative') {
-            systemPrompt += ` Focus on narrative flow, sensory details, and "Show, don't tell".`;
+            systemPrompt += `
+
+**CREATIVE WRITING CATEGORY REQUIREMENTS** — The optimized prompt must also demand:
+- Point of view (first/second/third person, omniscient vs. limited)
+- Tone and mood (melancholic, tense, whimsical, satirical, etc.)
+- Target audience and reading level
+- Word count or scene length
+- "Show, don't tell" instruction for sensory and emotional details
+- Specific narrative techniques (in medias res, unreliable narrator, etc.) if relevant
+- Style references: "Write in the style of [author/genre]" if applicable`;
         }
 
-        systemPrompt += `\n\nReturn ONLY the optimized prompt.`;
+        systemPrompt += `
+
+**CRITICAL OUTPUT RULE**: Return ONLY the fully optimized, ready-to-use prompt. Do NOT include explanations, meta-commentary, headings like "Optimized Prompt:", or any wrapper text. The entire response should be the prompt itself — nothing before it, nothing after it.`;
+
+        // Build a richer user message with context
+        const userMessage = `Transform the following rough input into an excellent, production-ready prompt using all the techniques in your instructions.
+
+Raw user input:
+"""
+${prompt}
+"""
+
+Remember: Return ONLY the optimized prompt itself — no preamble, no explanation.`;
 
         try {
             const selectedModel = modelSelect.value;
@@ -244,7 +339,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 },
                 messages: [
                     { role: "system", content: systemPrompt },
-                    { role: "user", content: `Optimize this prompt: "${prompt}"` }
+                    { role: "user", content: userMessage }
                 ]
             });
 
