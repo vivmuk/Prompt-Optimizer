@@ -160,15 +160,6 @@
 }
 
 /* Result Area Enhancements for Anthropic Skills */
-#anthropic-skill-result .result-area,
-#anthropic-skill-analysis.result-area {
-    border: 2px solid var(--color-charcoal);
-    border-radius: 15px;
-    padding: 25px;
-    background: white;
-    box-shadow: 4px 4px 0px rgba(46, 46, 46, 0.15);
-}
-
 #anthropic-skill-result h3,
 #anthropic-skill-analysis h3 {
     color: var(--color-charcoal);
@@ -362,29 +353,14 @@
     }
 }
 
-/* Global Result Area Overrides */
-.result-area {
+/* Skill file display copy button positioning */
+.skill-file-display {
     position: relative;
-    /* Ensure existing padding accommodates the absolute button */
-    padding-top: 50px;
 }
 
-/* Position the main copy button to the right */
-.result-area>.copy-btn {
+.skill-file-display > .copy-btn {
     position: absolute;
     top: 20px;
-    right: 20px;
-    background-color: var(--color-mustard);
-    z-index: 100;
-}
-
-/* Ensure title doesn't overlap */
-.result-area h3 {
-    margin-top: 0;
-}
-
-/* Fix for Anthropic Skill Result selector bug */
-#anthropic-skill-result.result-area {
-    display: block;
-    /* Ensure it overrides any specific hiding if needed */
+    right: 10px;
+    z-index: 10;
 }

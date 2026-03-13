@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
     <title>Prompt Optimizer - Mid Century AI</title>
 
     <!-- Google Fonts -->
@@ -39,42 +39,36 @@
             <!-- SECTION 1: PROMPT OPTIMIZER -->
             <section id="optimizer" class="section active">
                 <h2>Optimize Your Prompt</h2>
-                <p style="margin-bottom: 20px; color: #555;">Transform basic ideas into powerful, engineered prompts.
-                </p>
+                <p style="margin-bottom: 20px; color: #555;">Transform basic ideas into powerful, engineered prompts.</p>
 
                 <div class="category-grid">
                     <div class="category-card selected" data-category="general">General</div>
-                    <div class="category-card" data-category="coding">Coding & Tech</div>
+                    <div class="category-card" data-category="coding">Coding &amp; Tech</div>
                     <div class="category-card" data-category="creative">Creative Writing</div>
                 </div>
 
                 <div class="input-group">
-                    <label for="basic-prompt" style="display:block; margin-bottom:10px; font-weight:700;">Your
-                        Draft:</label>
+                    <label for="basic-prompt" style="display:block; margin-bottom:10px; font-weight:700;">Your Draft:</label>
                     <textarea id="basic-prompt" placeholder="e.g. Write a blog about coffee..."></textarea>
                 </div>
 
-                <div style="display: flex; gap: 10px; margin-bottom: 15px; justify-content: flex-end;">
-                    <div style="flex-grow: 1; text-align: right;">
-                        <label for="provider-select" style="font-size: 0.9rem; margin-right: 5px;">Target
-                            Provider:</label>
-                        <select id="provider-select" style="width: auto; padding: 10px;">
-                            <option value="general">General (Universal)</option>
-                            <option value="claude">Anthropic Claude (XML)</option>
-                            <option value="gemini">Google Gemini (PTCF)</option>
-                            <option value="openai">OpenAI GPT (Markdown)</option>
-                        </select>
-                    </div>
+                <!-- Provider row -->
+                <div class="controls-row" style="margin-bottom: 15px;">
+                    <label for="provider-select">Target Provider:</label>
+                    <select id="provider-select">
+                        <option value="general">General (Universal)</option>
+                        <option value="claude">Anthropic Claude (XML)</option>
+                        <option value="gemini">Google Gemini (PTCF)</option>
+                        <option value="openai">OpenAI GPT (Markdown)</option>
+                    </select>
                 </div>
 
-                <div
-                    style="display: flex; align-items: center; justify-content: flex-end; gap: 15px; margin-top: 20px;">
-                    <div id="optimizer-inline-status"
-                        style="display: none; color: var(--color-teal); font-weight: bold; font-size: 1.2rem;">
+                <!-- Model + Transform row -->
+                <div class="controls-row">
+                    <span id="optimizer-inline-status" class="inline-status">
                         <span id="optimizer-progress">0%</span>
-                    </div>
-                    <select id="model-select"
-                        style="display:inline-block; width: auto; margin-right: 10px; margin-bottom: 0;">
+                    </span>
+                    <select id="model-select">
                         <option value="deepseek-r1-671b-thinking">DeepSeek R1 671B</option>
                         <option value="zai-org-glm-4.7">GLM 4.7</option>
                         <option value="gemini-3-pro-preview">Gemini 3 Pro Preview</option>
@@ -90,41 +84,59 @@
                     <p>Optimizing your prompt...</p>
                 </div>
 
+                <!-- Result area -->
                 <div id="optimizer-result" class="result-area" style="display: none;">
-                    <button class="copy-btn" onclick="copyToClipboard('optimized-output')">Copy</button>
+                    <button class="copy-btn" id="optimizer-copy-btn" onclick="copyToClipboard('optimized-output', this)">
+                        📋 Copy
+                    </button>
                     <h3>Optimized Result:</h3>
-                    <div id="optimized-output" contenteditable="true"
-                        style="white-space: pre-wrap; margin-top: 15px; border: 1px dashed #ccc; padding: 10px; border-radius: 5px;">
+                    <div id="optimized-output" contenteditable="true"></div>
+
+                    <!-- Chatbot quick-launch links -->
+                    <div class="chatbot-links" id="chatbot-links">
+                        <div class="chatbot-links-title">
+                            🚀 Use this prompt in your favourite chatbot
+                        </div>
+                        <div class="chatbot-links-row">
+                            <a href="https://chat.openai.com" target="_blank" rel="noopener noreferrer"
+                               class="chatbot-link-btn chatgpt">
+                                💬 ChatGPT
+                            </a>
+                            <a href="https://claude.ai" target="_blank" rel="noopener noreferrer"
+                               class="chatbot-link-btn claude">
+                                ✦ Claude
+                            </a>
+                            <a href="https://gemini.google.com" target="_blank" rel="noopener noreferrer"
+                               class="chatbot-link-btn gemini">
+                                ✦ Gemini
+                            </a>
+                        </div>
+                        <p class="chatbot-link-hint">Copy your optimized prompt above, then click a chatbot to open it and paste.</p>
                     </div>
 
-                    <div
-                        style="margin-top: 20px; text-align: right; display: flex; align-items: center; justify-content: flex-end; gap: 10px;">
-                        <span style="font-size: 0.9rem;">Answer Model:</span>
-                        <select id="answer-model-select" style="width: auto; padding: 8px; margin-bottom: 0;">
+                    <!-- Generate answer section -->
+                    <div class="answer-controls">
+                        <span>Answer Model:</span>
+                        <select id="answer-model-select">
                             <!-- Populated by JS -->
                         </select>
-                        <button class="action-btn secondary" id="generate-answer-btn"
-                            style="margin-top: 0; font-size: 1rem;">Generate Answer with AI</button>
+                        <button class="action-btn secondary" id="generate-answer-btn">Generate Answer with AI</button>
                     </div>
-                    <div id="generated-answer"
-                        style="margin-top: 20px; border-top: 2px dashed #ccc; padding-top: 20px; display: none;"></div>
+                    <div id="generated-answer" style="margin-top: 20px; border-top: 2px dashed #ccc; padding-top: 20px; display: none;"></div>
                 </div>
             </section>
 
             <!-- SECTION 2: AGENT BUILDER -->
             <section id="agent-builder" class="section">
                 <h2>Build Your Agent</h2>
-                <p style="margin-bottom: 20px; color: #555;">Generate precise system instructions for your custom AI
-                    agents.</p>
+                <p style="margin-bottom: 20px; color: #555;">Generate precise system instructions for your custom AI agents.</p>
 
-                <div
-                    style="display: flex; align-items: center; justify-content: flex-end; gap: 15px; margin-bottom: 20px;">
-                    <div id="agent-inline-status"
-                        style="display: none; color: var(--color-teal); font-weight: bold; font-size: 1.2rem;">
+                <!-- Model + Build row -->
+                <div class="controls-row" style="margin-bottom: 20px;">
+                    <span id="agent-inline-status" class="inline-status">
                         <span id="agent-progress">0%</span>
-                    </div>
-                    <select id="agent-model-select"
-                        style="display:inline-block; width: auto; margin-right: 10px; margin-bottom: 0;">
+                    </span>
+                    <select id="agent-model-select">
                         <option value="deepseek-r1-671b-thinking">DeepSeek R1 671B</option>
                         <option value="zai-org-glm-4.7">GLM 4.7</option>
                         <option value="gemini-3-pro-preview">Gemini 3 Pro Preview</option>
@@ -136,8 +148,7 @@
                 </div>
 
                 <div class="input-group">
-                    <label for="agent-description" style="display:block; margin-bottom:10px; font-weight:700;">Agent
-                        Goal & Persona:</label>
+                    <label for="agent-description" style="display:block; margin-bottom:10px; font-weight:700;">Agent Goal &amp; Persona:</label>
                     <textarea id="agent-description"
                         placeholder="Describe what your agent should do, its personality, and any specific constraints..."></textarea>
                 </div>
@@ -153,25 +164,39 @@
                     <div class="agent-section" id="agent-section-name">
                         <h4>Name:</h4>
                         <div class="content-box"></div>
-                        <button class="copy-btn-small" onclick="copyAgentSection('name')">Copy</button>
+                        <button class="copy-btn-small" onclick="copyAgentSection('name', this)">Copy</button>
                     </div>
 
                     <div class="agent-section" id="agent-section-description">
                         <h4>Description:</h4>
                         <div class="content-box"></div>
-                        <button class="copy-btn-small" onclick="copyAgentSection('description')">Copy</button>
+                        <button class="copy-btn-small" onclick="copyAgentSection('description', this)">Copy</button>
                     </div>
 
                     <div class="agent-section" id="agent-section-instructions">
                         <h4>System Instructions:</h4>
                         <div class="content-box code-block"></div>
-                        <button class="copy-btn-small" onclick="copyAgentSection('instructions')">Copy</button>
+                        <button class="copy-btn-small" onclick="copyAgentSection('instructions', this)">Copy</button>
                     </div>
 
                     <div class="agent-section" id="agent-section-starters">
                         <h4>Conversation Starters:</h4>
                         <div class="content-box"></div>
-                        <button class="copy-btn-small" onclick="copyAgentSection('starters')">Copy</button>
+                        <button class="copy-btn-small" onclick="copyAgentSection('starters', this)">Copy</button>
+                    </div>
+
+                    <!-- Chatbot links for agent config -->
+                    <div class="chatbot-links" style="margin-top: 15px;">
+                        <div class="chatbot-links-title">🚀 Deploy your agent in</div>
+                        <div class="chatbot-links-row">
+                            <a href="https://chat.openai.com" target="_blank" rel="noopener noreferrer"
+                               class="chatbot-link-btn chatgpt">💬 ChatGPT</a>
+                            <a href="https://claude.ai" target="_blank" rel="noopener noreferrer"
+                               class="chatbot-link-btn claude">✦ Claude</a>
+                            <a href="https://gemini.google.com" target="_blank" rel="noopener noreferrer"
+                               class="chatbot-link-btn gemini">✦ Gemini</a>
+                        </div>
+                        <p class="chatbot-link-hint">Copy the System Instructions above, then open your chosen chatbot to create a custom agent.</p>
                     </div>
                 </div>
             </section>
@@ -192,12 +217,12 @@
                     <div class="skill-type-card" data-skill-type="tool">
                         <div class="skill-type-icon">🔧</div>
                         <div class="skill-type-name">Tool</div>
-                        <div class="skill-type-desc">Format handlers & APIs</div>
+                        <div class="skill-type-desc">Format handlers &amp; APIs</div>
                     </div>
                     <div class="skill-type-card" data-skill-type="reference">
                         <div class="skill-type-icon">📚</div>
                         <div class="skill-type-name">Reference</div>
-                        <div class="skill-type-desc">Guidelines & standards</div>
+                        <div class="skill-type-desc">Guidelines &amp; standards</div>
                     </div>
                     <div class="skill-type-card" data-skill-type="capabilities">
                         <div class="skill-type-icon">⚡</div>
@@ -207,15 +232,13 @@
                 </div>
 
                 <div class="input-group">
-                    <label for="anthropic-skill-name" style="display:block; margin-bottom:10px; font-weight:700;">Skill
-                        Name (kebab-case):</label>
+                    <label for="anthropic-skill-name" style="display:block; margin-bottom:10px; font-weight:700;">Skill Name (kebab-case):</label>
                     <input type="text" id="anthropic-skill-name"
                         placeholder="e.g. clinical-trial-analyzer, pdf-handler, brand-guidelines">
                 </div>
 
                 <div class="input-group">
-                    <label for="anthropic-skill-description"
-                        style="display:block; margin-bottom:10px; font-weight:700;">What should this skill do?</label>
+                    <label for="anthropic-skill-description" style="display:block; margin-bottom:10px; font-weight:700;">What should this skill do?</label>
                     <textarea id="anthropic-skill-description"
                         placeholder="Describe the skill's purpose, when it should be used, and what capabilities it provides. Be specific about input/output formats, workflows, or guidelines it should contain..."></textarea>
                 </div>
@@ -225,26 +248,22 @@
                         <input type="checkbox" id="include-scripts" checked>
                         <span>Include Python/Bash scripts</span>
                     </label>
-                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-left: 20px;">
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                         <input type="checkbox" id="include-references">
                         <span>Include reference docs</span>
                     </label>
-                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-left: 20px;">
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                         <input type="checkbox" id="include-assets">
                         <span>Include assets folder</span>
                     </label>
                 </div>
 
-                <div
-                    style="text-align: right; display: flex; align-items: center; justify-content: flex-end; gap: 15px;">
-                    <div id="anthropic-inline-status"
-                        style="display: none; color: var(--color-teal); font-weight: bold; font-size: 1.2rem;">
+                <div class="controls-row">
+                    <span id="anthropic-inline-status" class="inline-status">
                         <span id="anthropic-progress">0%</span>
-                    </div>
-                    <button class="action-btn secondary" id="analyze-skill-btn"
-                        style="font-size: 0.9rem; margin-top: 0;">ANALYZE REQUIREMENTS 🔍</button>
-                    <button class="action-btn" id="build-anthropic-skill-btn" style="margin-top: 0;">GENERATE SKILL
-                        PACKAGE 📦</button>
+                    </span>
+                    <button class="action-btn secondary" id="analyze-skill-btn" style="font-size: 0.9rem; margin-top: 0;">ANALYZE REQUIREMENTS 🔍</button>
+                    <button class="action-btn" id="build-anthropic-skill-btn" style="margin-top: 0;">GENERATE SKILL PACKAGE 📦</button>
                 </div>
 
                 <div id="anthropic-skill-loader" style="display: none; text-align: center; padding: 30px;">
@@ -269,16 +288,16 @@
                     </div>
 
                     <div id="skill-file-content" class="skill-file-display">
-                        <button class="copy-btn" onclick="copyToClipboard('anthropic-skill-preview')">Copy</button>
+                        <button class="copy-btn" id="skill-copy-btn" onclick="copyToClipboard('anthropic-skill-preview', this)">📋 Copy</button>
                         <pre id="anthropic-skill-preview"
-                            style="white-space: pre-wrap; background: #2E2E2E; color: #F4F1EA; padding: 15px; border-radius: 10px; overflow-x: auto; max-height: 500px; margin-top: 10px;"></pre>
+                            style="white-space: pre-wrap; background: #2E2E2E; color: #F4F1EA; padding: 15px; border-radius: 10px; overflow-x: auto; max-height: 500px; margin-top: 10px; font-size: 0.85rem; line-height: 1.6;"></pre>
                     </div>
 
-                    <div style="margin-top: 15px; display: flex; gap: 10px; justify-content: flex-end;">
+                    <div style="margin-top: 15px; display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap;">
                         <button class="action-btn secondary" id="regenerate-skill-btn"
-                            style="font-size: 0.9rem; padding: 10px 20px;">Regenerate ↻</button>
+                            style="font-size: 0.9rem; padding: 10px 20px; margin-top: 0;">Regenerate ↻</button>
                         <button class="action-btn" id="download-anthropic-skill-btn"
-                            style="font-size: 0.9rem; padding: 10px 20px;">Download .skill File 📥</button>
+                            style="font-size: 0.9rem; padding: 10px 20px; margin-top: 0;">Download .skill File 📥</button>
                     </div>
                 </div>
             </section>
