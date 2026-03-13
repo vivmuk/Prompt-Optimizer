@@ -172,9 +172,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    window.copyToClipboard = (elementId) => {
+    window.copyToClipboard = (elementId, btn) => {
         const text = document.getElementById(elementId).innerText;
-        navigator.clipboard.writeText(text).then(() => showToast('Copied to clipboard!'));
+        navigator.clipboard.writeText(text).then(() => {
+            showToast('Copied to clipboard!');
+            if (btn) {
+                const original = btn.innerHTML;
+                btn.innerHTML = '✓ Copied!';
+                btn.classList.add('copied');
+                setTimeout(() => {
+                    btn.innerHTML = original;
+                    btn.classList.remove('copied');
+                }, 2000);
+            }
+        });
     };
 
     // Simple Zip generation simulation (in a real app, use JSZip)
@@ -508,10 +519,21 @@ Remember: Return ONLY the optimized prompt itself — no preamble, no explanatio
         }
     });
 
-    window.copyAgentSection = (section) => {
+    window.copyAgentSection = (section, btn) => {
         const selector = `#agent-section-${section} .content-box`;
         const text = document.querySelector(selector).textContent;
-        navigator.clipboard.writeText(text).then(() => showToast('Copied to clipboard!'));
+        navigator.clipboard.writeText(text).then(() => {
+            showToast('Copied to clipboard!');
+            if (btn) {
+                const original = btn.textContent;
+                btn.textContent = '✓ Copied!';
+                btn.classList.add('copied');
+                setTimeout(() => {
+                    btn.textContent = original;
+                    btn.classList.remove('copied');
+                }, 2000);
+            }
+        });
     };
 
     // --- FEATURE 3: ANTHROPIC SKILLS BUILDER ---
