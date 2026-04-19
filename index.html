@@ -1,294 +1,605 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Prompt Optimizer - Mid Century AI</title>
-
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link
-        href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Josefin+Sans:wght@600;700&display=swap"
-        rel="stylesheet">
-
-    <link rel="stylesheet" href="styles.css">
-    <link rel="stylesheet" href="anthropic-skills.css">
-    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prompt Optimizer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&family=Space+Grotesk:wght@700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="anthropic-skills.css">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
 </head>
-
 <body>
 
-    <div class="shape shape-1"></div>
-    <div class="shape shape-2"></div>
-    <div class="shape shape-3"></div>
+<div class="container">
 
-    <div class="container">
-        <header>
-            <h1>PROMPT OPTIMIZER</h1>
-        </header>
+  <!-- ══ WARLI HERO MURAL ══════════════════════════════════ -->
+  <div class="warli-mural">
+    <svg viewBox="0 0 1120 120" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <!-- mud wall background strip -->
+      <rect width="1120" height="120" fill="#C4703E"/>
 
-        <nav class="nav-tabs">
-            <button class="tab-btn active" data-tab="optimizer">Prompt Optimizer</button>
-            <button class="tab-btn" data-tab="agent-builder">Agent Builder</button>
-            <button class="tab-btn" data-tab="anthropic-skills">Anthropic Skills</button>
-        </nav>
+      <!-- Swiss red top rule -->
+      <rect y="0" width="1120" height="5" fill="#C41E3A"/>
+      <!-- Swiss black bottom rule -->
+      <rect y="115" width="1120" height="5" fill="#1A1A1A"/>
 
-        <main>
-            <!-- SECTION 1: PROMPT OPTIMIZER -->
-            <section id="optimizer" class="section active">
-                <h2>Optimize Your Prompt</h2>
-                <p style="margin-bottom: 20px; color: #555;">Transform basic ideas into powerful, engineered prompts.
-                </p>
+      <!-- ── WARLI MOTIFS (white, hand-drawn stick-figure style) ── -->
+      <!-- Triangular figure = triangle body + circle head + stick limbs -->
 
-                <div class="category-grid">
-                    <div class="category-card selected" data-category="general">General</div>
-                    <div class="category-card" data-category="coding">Coding & Tech</div>
-                    <div class="category-card" data-category="creative">Creative Writing</div>
-                </div>
+      <!-- Reusable figure macro: drawn 12× across the mural -->
+      <!-- FIGURE 1 (plain standing) -->
+      <g fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round">
+        <circle cx="60" cy="30" r="7" fill="white" stroke="none"/>
+        <polygon points="60,37 48,72 72,72" fill="white" stroke="none"/>
+        <line x1="48" y1="55" x2="36" y2="65"/>
+        <line x1="72" y1="55" x2="84" y2="65"/>
+        <line x1="52" y1="72" x2="48" y2="88"/>
+        <line x1="68" y1="72" x2="72" y2="88"/>
+      </g>
 
-                <div class="input-group">
-                    <label for="basic-prompt" style="display:block; margin-bottom:10px; font-weight:700;">Your
-                        Draft:</label>
-                    <textarea id="basic-prompt" placeholder="e.g. Write a blog about coffee..."></textarea>
-                </div>
+      <!-- FIGURE 2 (arms raised) -->
+      <g fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round">
+        <circle cx="130" cy="30" r="7" fill="white" stroke="none"/>
+        <polygon points="130,37 118,72 142,72" fill="white" stroke="none"/>
+        <line x1="118" y1="50" x2="106" y2="38"/>
+        <line x1="142" y1="50" x2="154" y2="38"/>
+        <line x1="122" y1="72" x2="118" y2="88"/>
+        <line x1="138" y1="72" x2="142" y2="88"/>
+      </g>
 
-                <div style="display: flex; gap: 10px; margin-bottom: 15px; justify-content: flex-end;">
-                    <div style="flex-grow: 1; text-align: right;">
-                        <label for="provider-select" style="font-size: 0.9rem; margin-right: 5px;">Target
-                            Provider:</label>
-                        <select id="provider-select" style="width: auto; padding: 10px;">
-                            <option value="general">General (Universal)</option>
-                            <option value="claude">Anthropic Claude (XML)</option>
-                            <option value="gemini">Google Gemini (PTCF)</option>
-                            <option value="openai">OpenAI GPT (Markdown)</option>
-                        </select>
-                    </div>
-                </div>
+      <!-- TARPA DANCE CIRCLE (7 figures in ring around 240,60) -->
+      <g transform="translate(240,60)">
+        <!-- circle of figures, each rotated -->
+        <g transform="rotate(0)">
+          <circle cx="0" cy="-38" r="5" fill="white"/>
+          <polygon points="0,-33 -8,-16 8,-16" fill="white"/>
+        </g>
+        <g transform="rotate(51)">
+          <circle cx="0" cy="-38" r="5" fill="white"/>
+          <polygon points="0,-33 -8,-16 8,-16" fill="white"/>
+        </g>
+        <g transform="rotate(102)">
+          <circle cx="0" cy="-38" r="5" fill="white"/>
+          <polygon points="0,-33 -8,-16 8,-16" fill="white"/>
+        </g>
+        <g transform="rotate(153)">
+          <circle cx="0" cy="-38" r="5" fill="white"/>
+          <polygon points="0,-33 -8,-16 8,-16" fill="white"/>
+        </g>
+        <g transform="rotate(204)">
+          <circle cx="0" cy="-38" r="5" fill="white"/>
+          <polygon points="0,-33 -8,-16 8,-16" fill="white"/>
+        </g>
+        <g transform="rotate(255)">
+          <circle cx="0" cy="-38" r="5" fill="white"/>
+          <polygon points="0,-33 -8,-16 8,-16" fill="white"/>
+        </g>
+        <g transform="rotate(306)">
+          <circle cx="0" cy="-38" r="5" fill="white"/>
+          <polygon points="0,-33 -8,-16 8,-16" fill="white"/>
+        </g>
+        <!-- ring -->
+        <circle cx="0" cy="0" r="38" fill="none" stroke="white" stroke-width="1.5" stroke-dasharray="4 3"/>
+        <!-- tarpa (horn) in center -->
+        <ellipse cx="0" cy="0" rx="8" ry="5" fill="white"/>
+        <line x1="8" y1="0" x2="20" y2="-8" stroke="white" stroke-width="2"/>
+      </g>
 
-                <div
-                    style="display: flex; align-items: center; justify-content: flex-end; gap: 15px; margin-top: 20px;">
-                    <div id="optimizer-inline-status"
-                        style="display: none; color: var(--color-teal); font-weight: bold; font-size: 1.2rem;">
-                        <span id="optimizer-progress">0%</span>
-                    </div>
-                    <select id="model-select"
-                        style="display:inline-block; width: auto; margin-right: 10px; margin-bottom: 0;">
-                        <option value="deepseek-r1-671b-thinking">DeepSeek R1 671B</option>
-                        <option value="zai-org-glm-4.7">GLM 4.7</option>
-                        <option value="gemini-3-pro-preview">Gemini 3 Pro Preview</option>
-                        <option value="qwen3-4b">Qwen 3 4B</option>
-                        <option value="qwen3-235b-a22b-thinking-2507">Qwen 3 235B Thinking</option>
-                        <option value="venice-uncensored">Venice Uncensored</option>
-                    </select>
-                    <button class="action-btn" id="optimize-btn">TRANSFORM ✨</button>
-                </div>
+      <!-- TREE OF LIFE at ~380 -->
+      <g transform="translate(380,95)" stroke="white" stroke-width="2.2" fill="none">
+        <!-- trunk -->
+        <line x1="0" y1="0" x2="0" y2="-55"/>
+        <!-- branches -->
+        <line x1="0" y1="-20" x2="-20" y2="-38"/>
+        <line x1="0" y1="-20" x2="20" y2="-38"/>
+        <line x1="0" y1="-35" x2="-14" y2="-50"/>
+        <line x1="0" y1="-35" x2="14" y2="-50"/>
+        <!-- fruit circles -->
+        <circle cx="-20" cy="-40" r="5" fill="white"/>
+        <circle cx="20" cy="-40" r="5" fill="white"/>
+        <circle cx="-14" cy="-53" r="4" fill="white"/>
+        <circle cx="14" cy="-53" r="4" fill="white"/>
+        <circle cx="0" cy="-57" r="5" fill="white"/>
+        <!-- roots -->
+        <line x1="0" y1="0" x2="-16" y2="14"/>
+        <line x1="0" y1="0" x2="16" y2="14"/>
+      </g>
 
-                <div id="optimizer-loader" style="display: none; text-align: center; margin-top: 20px;">
-                    <div class="loader"></div>
-                    <p>Optimizing your prompt...</p>
-                </div>
+      <!-- SUN at 480 -->
+      <g transform="translate(480,60)" stroke="white" stroke-width="2" fill="none">
+        <circle cx="0" cy="0" r="14" fill="white"/>
+        <circle cx="0" cy="0" r="8" fill="#C4703E"/>
+        <!-- rays -->
+        <line x1="0" y1="-18" x2="0" y2="-26"/>
+        <line x1="0" y1="18" x2="0" y2="26"/>
+        <line x1="-18" y1="0" x2="-26" y2="0"/>
+        <line x1="18" y1="0" x2="26" y2="0"/>
+        <line x1="-13" y1="-13" x2="-18" y2="-18"/>
+        <line x1="13" y1="-13" x2="18" y2="-18"/>
+        <line x1="-13" y1="13" x2="-18" y2="18"/>
+        <line x1="13" y1="13" x2="18" y2="18"/>
+      </g>
 
-                <div id="optimizer-result" class="result-area" style="display: none;">
-                    <button class="copy-btn" onclick="copyToClipboard('optimized-output')">Copy</button>
-                    <h3>Optimized Result:</h3>
-                    <div id="optimized-output" contenteditable="true"
-                        style="white-space: pre-wrap; margin-top: 15px; border: 1px dashed #ccc; padding: 10px; border-radius: 5px;">
-                    </div>
+      <!-- FARMER + PLOW at 560 -->
+      <g stroke="white" stroke-width="2.2" fill="white" stroke-linecap="round" transform="translate(560,30)">
+        <!-- farmer body -->
+        <circle cx="0" cy="0" r="6"/>
+        <polygon points="0,6 -9,28 9,28" fill="white" stroke="none"/>
+        <!-- arms pushing -->
+        <line x1="-9" y1="17" x2="-20" y2="28"/>
+        <line x1="9" y1="17" x2="20" y2="28"/>
+        <!-- legs -->
+        <line x1="-4" y1="28" x2="-6" y2="44"/>
+        <line x1="4" y1="28" x2="6" y2="44"/>
+        <!-- plow (V shape) -->
+        <polyline points="-20,28 -28,48 28,48 20,28" fill="none" stroke="white" stroke-width="2.2"/>
+        <!-- ox (simple) -->
+        <ellipse cx="48" cy="40" rx="18" ry="8" fill="white"/>
+        <circle cx="64" cy="36" r="5" fill="white"/>
+        <!-- ox horns -->
+        <line x1="62" y1="32" x2="58" y2="26" stroke="white"/>
+        <line x1="66" y1="32" x2="70" y2="26" stroke="white"/>
+        <!-- rope -->
+        <line x1="20" y1="44" x2="30" y2="40" stroke="white" stroke-dasharray="3 2"/>
+      </g>
 
-                    <div
-                        style="margin-top: 20px; text-align: right; display: flex; align-items: center; justify-content: flex-end; gap: 10px;">
-                        <span style="font-size: 0.9rem;">Answer Model:</span>
-                        <select id="answer-model-select" style="width: auto; padding: 8px; margin-bottom: 0;">
-                            <!-- Populated by JS -->
-                        </select>
-                        <button class="action-btn secondary" id="generate-answer-btn"
-                            style="margin-top: 0; font-size: 1rem;">Generate Answer with AI</button>
-                    </div>
-                    <div id="generated-answer"
-                        style="margin-top: 20px; border-top: 2px dashed #ccc; padding-top: 20px; display: none;"></div>
-                </div>
-            </section>
+      <!-- VILLAGE HUT at 700 -->
+      <g transform="translate(700,95)" stroke="white" stroke-width="2.2" fill="none">
+        <!-- roof triangle -->
+        <polygon points="0,-55 -35,-15 35,-15" fill="white"/>
+        <!-- hut walls -->
+        <rect x="-28" y="-15" width="56" height="30" fill="white"/>
+        <!-- door -->
+        <rect x="-8" y="-5" width="16" height="20" fill="#C4703E"/>
+        <!-- window -->
+        <rect x="-24" y="-10" width="10" height="10" fill="#C4703E"/>
+        <!-- smoke -->
+        <path d="M0,-60 Q5,-70 0,-80 Q-5,-90 0,-100" fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+      </g>
 
-            <!-- SECTION 2: AGENT BUILDER -->
-            <section id="agent-builder" class="section">
-                <h2>Build Your Agent</h2>
-                <p style="margin-bottom: 20px; color: #555;">Generate precise system instructions for your custom AI
-                    agents.</p>
+      <!-- FIGURE 3 dancing (arms up, leaning) at 790 -->
+      <g fill="white" stroke="none" transform="translate(790,28) rotate(-8)">
+        <circle cx="0" cy="0" r="7"/>
+        <polygon points="0,7 -10,38 10,38"/>
+        <line x1="-10" y1="20" x2="-22" y2="8" stroke="white" stroke-width="2.2" fill="none"/>
+        <line x1="10" y1="20" x2="22" y2="10" stroke="white" stroke-width="2.2" fill="none"/>
+        <line x1="-5" y1="38" x2="-8" y2="56" stroke="white" stroke-width="2.2" fill="none"/>
+        <line x1="5" y1="38" x2="10" y2="56" stroke="white" stroke-width="2.2" fill="none"/>
+      </g>
 
-                <div
-                    style="display: flex; align-items: center; justify-content: flex-end; gap: 15px; margin-bottom: 20px;">
-                    <div id="agent-inline-status"
-                        style="display: none; color: var(--color-teal); font-weight: bold; font-size: 1.2rem;">
-                        <span id="agent-progress">0%</span>
-                    </div>
-                    <select id="agent-model-select"
-                        style="display:inline-block; width: auto; margin-right: 10px; margin-bottom: 0;">
-                        <option value="deepseek-r1-671b-thinking">DeepSeek R1 671B</option>
-                        <option value="zai-org-glm-4.7">GLM 4.7</option>
-                        <option value="gemini-3-pro-preview">Gemini 3 Pro Preview</option>
-                        <option value="qwen3-4b">Qwen 3 4B</option>
-                        <option value="qwen3-235b-a22b-thinking-2507">Qwen 3 235B Thinking</option>
-                        <option value="venice-uncensored">Venice Uncensored</option>
-                    </select>
-                    <button class="action-btn" id="build-agent-btn">BUILD INSTRUCTIONS 🛠️</button>
-                </div>
+      <!-- MOON (crescent) at 860 -->
+      <g transform="translate(860,60)">
+        <path d="M0,-20 A20,20 0 1,1 0,20 A12,12 0 1,0 0,-20" fill="white"/>
+      </g>
 
-                <div class="input-group">
-                    <label for="agent-description" style="display:block; margin-bottom:10px; font-weight:700;">Agent
-                        Goal & Persona:</label>
-                    <textarea id="agent-description"
-                        placeholder="Describe what your agent should do, its personality, and any specific constraints..."></textarea>
-                </div>
+      <!-- FIGURE 4 at 940 -->
+      <g fill="white" stroke="white" stroke-width="2.2" stroke-linecap="round" transform="translate(940,28)">
+        <circle cx="0" cy="0" r="7" stroke="none"/>
+        <polygon points="0,7 -10,38 10,38" stroke="none"/>
+        <line x1="-10" y1="22" x2="-20" y2="32"/>
+        <line x1="10" y1="22" x2="20" y2="32"/>
+        <line x1="-4" y1="38" x2="-4" y2="56"/>
+        <line x1="4" y1="38" x2="4" y2="56"/>
+      </g>
 
-                <div id="agent-loader" style="display: none; text-align: center; margin-top: 20px;">
-                    <div class="loader"></div>
-                    <p>Constructing agent profile...</p>
-                </div>
+      <!-- SECOND TARPA CIRCLE (small) at 1030 -->
+      <g transform="translate(1030,60)">
+        <g transform="rotate(0)">
+          <circle cx="0" cy="-28" r="4" fill="white"/>
+          <polygon points="0,-24 -6,-10 6,-10" fill="white"/>
+        </g>
+        <g transform="rotate(72)">
+          <circle cx="0" cy="-28" r="4" fill="white"/>
+          <polygon points="0,-24 -6,-10 6,-10" fill="white"/>
+        </g>
+        <g transform="rotate(144)">
+          <circle cx="0" cy="-28" r="4" fill="white"/>
+          <polygon points="0,-24 -6,-10 6,-10" fill="white"/>
+        </g>
+        <g transform="rotate(216)">
+          <circle cx="0" cy="-28" r="4" fill="white"/>
+          <polygon points="0,-24 -6,-10 6,-10" fill="white"/>
+        </g>
+        <g transform="rotate(288)">
+          <circle cx="0" cy="-28" r="4" fill="white"/>
+          <polygon points="0,-24 -6,-10 6,-10" fill="white"/>
+        </g>
+        <circle cx="0" cy="0" r="28" fill="none" stroke="white" stroke-width="1.2" stroke-dasharray="3 3"/>
+      </g>
+    </svg>
+  </div>
 
-                <div id="agent-result" class="result-area" style="display: none;">
-                    <h3>Agent Configuration:</h3>
-
-                    <div class="agent-section" id="agent-section-name">
-                        <h4>Name:</h4>
-                        <div class="content-box"></div>
-                        <button class="copy-btn-small" onclick="copyAgentSection('name')">Copy</button>
-                    </div>
-
-                    <div class="agent-section" id="agent-section-description">
-                        <h4>Description:</h4>
-                        <div class="content-box"></div>
-                        <button class="copy-btn-small" onclick="copyAgentSection('description')">Copy</button>
-                    </div>
-
-                    <div class="agent-section" id="agent-section-instructions">
-                        <h4>System Instructions:</h4>
-                        <div class="content-box code-block"></div>
-                        <button class="copy-btn-small" onclick="copyAgentSection('instructions')">Copy</button>
-                    </div>
-
-                    <div class="agent-section" id="agent-section-starters">
-                        <h4>Conversation Starters:</h4>
-                        <div class="content-box"></div>
-                        <button class="copy-btn-small" onclick="copyAgentSection('starters')">Copy</button>
-                    </div>
-                </div>
-            </section>
-
-            <!-- SECTION 3: ANTHROPIC SKILLS BUILDER -->
-            <section id="anthropic-skills" class="section">
-                <h2>Anthropic Agent Skills</h2>
-                <p style="margin-bottom: 20px; color: #555;">Create modular .skill packages for Claude Code and
-                    Anthropic agents. Skills are ZIP files containing SKILL.md with instructions, optional scripts,
-                    references, and assets.</p>
-
-                <div class="skill-type-grid">
-                    <div class="skill-type-card selected" data-skill-type="workflow">
-                        <div class="skill-type-icon">🔄</div>
-                        <div class="skill-type-name">Workflow</div>
-                        <div class="skill-type-desc">Multi-step processes</div>
-                    </div>
-                    <div class="skill-type-card" data-skill-type="tool">
-                        <div class="skill-type-icon">🔧</div>
-                        <div class="skill-type-name">Tool</div>
-                        <div class="skill-type-desc">Format handlers & APIs</div>
-                    </div>
-                    <div class="skill-type-card" data-skill-type="reference">
-                        <div class="skill-type-icon">📚</div>
-                        <div class="skill-type-name">Reference</div>
-                        <div class="skill-type-desc">Guidelines & standards</div>
-                    </div>
-                    <div class="skill-type-card" data-skill-type="capabilities">
-                        <div class="skill-type-icon">⚡</div>
-                        <div class="skill-type-name">Capabilities</div>
-                        <div class="skill-type-desc">Extend agent abilities</div>
-                    </div>
-                </div>
-
-                <div class="input-group">
-                    <label for="anthropic-skill-name" style="display:block; margin-bottom:10px; font-weight:700;">Skill
-                        Name (kebab-case):</label>
-                    <input type="text" id="anthropic-skill-name"
-                        placeholder="e.g. clinical-trial-analyzer, pdf-handler, brand-guidelines">
-                </div>
-
-                <div class="input-group">
-                    <label for="anthropic-skill-description"
-                        style="display:block; margin-bottom:10px; font-weight:700;">What should this skill do?</label>
-                    <textarea id="anthropic-skill-description"
-                        placeholder="Describe the skill's purpose, when it should be used, and what capabilities it provides. Be specific about input/output formats, workflows, or guidelines it should contain..."></textarea>
-                </div>
-
-                <div class="checkbox-group" style="margin-bottom: 15px;">
-                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                        <input type="checkbox" id="include-scripts" checked>
-                        <span>Include Python/Bash scripts</span>
-                    </label>
-                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-left: 20px;">
-                        <input type="checkbox" id="include-references">
-                        <span>Include reference docs</span>
-                    </label>
-                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-left: 20px;">
-                        <input type="checkbox" id="include-assets">
-                        <span>Include assets folder</span>
-                    </label>
-                </div>
-
-                <div
-                    style="text-align: right; display: flex; align-items: center; justify-content: flex-end; gap: 15px;">
-                    <div id="anthropic-inline-status"
-                        style="display: none; color: var(--color-teal); font-weight: bold; font-size: 1.2rem;">
-                        <span id="anthropic-progress">0%</span>
-                    </div>
-                    <button class="action-btn secondary" id="analyze-skill-btn"
-                        style="font-size: 0.9rem; margin-top: 0;">ANALYZE REQUIREMENTS 🔍</button>
-                    <button class="action-btn" id="build-anthropic-skill-btn" style="margin-top: 0;">GENERATE SKILL
-                        PACKAGE 📦</button>
-                </div>
-
-                <div id="anthropic-skill-loader" style="display: none; text-align: center; padding: 30px;">
-                    <div class="loader"></div>
-                    <p id="anthropic-skill-status">Analyzing skill requirements...</p>
-                </div>
-
-                <!-- Analysis Result -->
-                <div id="anthropic-skill-analysis" class="result-area" style="display: none; margin-top: 20px;">
-                    <h3>📋 Skill Analysis</h3>
-                    <div id="anthropic-skill-structure" class="analysis-content"></div>
-                </div>
-
-                <!-- Generated Skill Result -->
-                <div id="anthropic-skill-result" class="result-area" style="display: none;">
-                    <h3>🎯 Generated Skill Package</h3>
-
-                    <div class="skill-file-tabs">
-                        <button class="skill-file-tab active" data-file="skill-md">SKILL.md</button>
-                        <button class="skill-file-tab" data-file="scripts">Scripts</button>
-                        <button class="skill-file-tab" data-file="structure">Structure</button>
-                    </div>
-
-                    <div id="skill-file-content" class="skill-file-display">
-                        <button class="copy-btn" onclick="copyToClipboard('anthropic-skill-preview')">Copy</button>
-                        <pre id="anthropic-skill-preview"
-                            style="white-space: pre-wrap; background: #2E2E2E; color: #F4F1EA; padding: 15px; border-radius: 10px; overflow-x: auto; max-height: 500px; margin-top: 10px;"></pre>
-                    </div>
-
-                    <div style="margin-top: 15px; display: flex; gap: 10px; justify-content: flex-end;">
-                        <button class="action-btn secondary" id="regenerate-skill-btn"
-                            style="font-size: 0.9rem; padding: 10px 20px;">Regenerate ↻</button>
-                        <button class="action-btn" id="download-anthropic-skill-btn"
-                            style="font-size: 0.9rem; padding: 10px 20px;">Download .skill File 📥</button>
-                    </div>
-                </div>
-            </section>
-
-        </main>
+  <!-- ══ HEADER ══════════════════════════════════════════════ -->
+  <header>
+    <div class="header-inner">
+      <div>
+        <h1>Prompt Optimizer</h1>
+        <span class="swiss-rule"></span>
+      </div>
+      <span class="header-sub">Venice AI · Warli×Swiss Edition</span>
     </div>
+  </header>
 
-    <div id="toast" class="toast">Action Successful!</div>
+  <!-- ══ NAVIGATION ══════════════════════════════════════════ -->
+  <nav class="nav-tabs">
+    <button class="tab-btn active" data-tab="optimizer">Optimizer</button>
+    <button class="tab-btn" data-tab="agent-builder">Agent Builder</button>
+    <button class="tab-btn" data-tab="anthropic-skills">Skills</button>
+    <button class="tab-btn" data-tab="plugin-builder">Plugin Builder</button>
+  </nav>
 
-    <script src="app.js"></script>
+  <!-- ══ MAIN ════════════════════════════════════════════════ -->
+  <main>
+
+    <!-- ── TAB 1: PROMPT OPTIMIZER ──────────────────────────── -->
+    <section id="optimizer" class="section active">
+      <div class="section-head">
+        <!-- Warli tree motif -->
+        <svg class="motif" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="44" height="44" fill="#C41E3A"/>
+          <g stroke="white" stroke-width="2" stroke-linecap="round">
+            <line x1="22" y1="38" x2="22" y2="10"/>
+            <line x1="22" y1="22" x2="10" y2="14"/>
+            <line x1="22" y1="22" x2="34" y2="14"/>
+            <line x1="22" y1="15" x2="14" y2="8"/>
+            <line x1="22" y1="15" x2="30" y2="8"/>
+            <circle cx="10" cy="12" r="3" fill="white" stroke="none"/>
+            <circle cx="34" cy="12" r="3" fill="white" stroke="none"/>
+            <circle cx="14" cy="6" r="2.5" fill="white" stroke="none"/>
+            <circle cx="30" cy="6" r="2.5" fill="white" stroke="none"/>
+            <circle cx="22" cy="4" r="3" fill="white" stroke="none"/>
+          </g>
+        </svg>
+        <h2>Optimize Your Prompt</h2>
+      </div>
+      <p class="section-desc">Transform basic ideas into powerful, engineered prompts.</p>
+
+      <div class="category-grid">
+        <div class="category-card selected" data-category="general">General</div>
+        <div class="category-card" data-category="coding">Coding &amp; Tech</div>
+        <div class="category-card" data-category="creative">Creative Writing</div>
+      </div>
+
+      <div class="input-group">
+        <label for="basic-prompt">Your Draft:</label>
+        <textarea id="basic-prompt" placeholder="e.g. Write a blog about coffee..."></textarea>
+      </div>
+
+      <div class="toolbar">
+        <label for="provider-select">Target Provider:</label>
+        <select id="provider-select" style="width:auto;">
+          <option value="general">General (Universal)</option>
+          <option value="claude">Anthropic Claude (XML)</option>
+          <option value="gemini">Google Gemini (PTCF)</option>
+          <option value="openai">OpenAI GPT (Markdown)</option>
+        </select>
+        <label for="model-select">Model:</label>
+        <select id="model-select" style="width:auto;">
+          <option value="deepseek-r1-671b-thinking">DeepSeek R1 671B</option>
+          <option value="zai-org-glm-4.7">GLM 4.7</option>
+          <option value="gemini-3-pro-preview">Gemini 3 Pro</option>
+          <option value="qwen3-235b-a22b-thinking-2507">Qwen 3 235B</option>
+          <option value="venice-uncensored">Venice Uncensored</option>
+        </select>
+        <span class="inline-status" id="optimizer-inline-status"><span id="optimizer-progress">0%</span></span>
+        <button class="action-btn" id="optimize-btn">Transform</button>
+      </div>
+
+      <div id="optimizer-loader" style="display:none;text-align:center;padding:20px;">
+        <div class="loader"></div>
+        <p style="font-family:var(--font-swiss);font-size:0.75rem;text-transform:uppercase;letter-spacing:2px;margin-top:8px;">Optimizing…</p>
+      </div>
+
+      <div id="optimizer-result" class="result-area" style="display:none;">
+        <button class="copy-btn" style="position:absolute;top:16px;right:16px;" onclick="copyToClipboard('optimized-output')">Copy</button>
+        <h3>Optimized Result</h3>
+        <div id="optimized-output" contenteditable="true" style="white-space:pre-wrap;min-height:80px;"></div>
+
+        <div class="toolbar" style="margin-top:20px;">
+          <label for="answer-model-select">Answer Model:</label>
+          <select id="answer-model-select" style="width:auto;"></select>
+          <button class="action-btn secondary" id="generate-answer-btn">Generate Answer</button>
+        </div>
+        <div id="generated-answer" style="display:none;"></div>
+      </div>
+    </section>
+
+    <!-- ── TAB 2: AGENT BUILDER ─────────────────────────────── -->
+    <section id="agent-builder" class="section">
+      <div class="section-head">
+        <svg class="motif" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="44" height="44" fill="#1A1A1A"/>
+          <!-- Warli figure motif -->
+          <circle cx="22" cy="10" r="5" fill="white"/>
+          <polygon points="22,15 14,34 30,34" fill="white"/>
+          <line x1="14" y1="24" x2="6" y2="30" stroke="white" stroke-width="2" stroke-linecap="round"/>
+          <line x1="30" y1="24" x2="38" y2="30" stroke="white" stroke-width="2" stroke-linecap="round"/>
+          <line x1="17" y1="34" x2="14" y2="42" stroke="white" stroke-width="2" stroke-linecap="round"/>
+          <line x1="27" y1="34" x2="30" y2="42" stroke="white" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <h2>Build Your Agent</h2>
+      </div>
+      <p class="section-desc">Generate precise system instructions for your custom AI agents.</p>
+
+      <div class="toolbar">
+        <label for="agent-model-select">Model:</label>
+        <select id="agent-model-select" style="width:auto;">
+          <option value="deepseek-r1-671b-thinking">DeepSeek R1 671B</option>
+          <option value="zai-org-glm-4.7">GLM 4.7</option>
+          <option value="gemini-3-pro-preview">Gemini 3 Pro</option>
+          <option value="qwen3-235b-a22b-thinking-2507">Qwen 3 235B</option>
+          <option value="venice-uncensored">Venice Uncensored</option>
+        </select>
+        <span class="inline-status" id="agent-inline-status"><span id="agent-progress">0%</span></span>
+        <button class="action-btn" id="build-agent-btn">Build Instructions</button>
+      </div>
+
+      <div class="input-group">
+        <label for="agent-description">Agent Goal &amp; Persona:</label>
+        <textarea id="agent-description" placeholder="Describe what your agent should do, its personality, and any specific constraints..."></textarea>
+      </div>
+
+      <div id="agent-loader" style="display:none;text-align:center;padding:20px;">
+        <div class="loader"></div>
+        <p style="font-family:var(--font-swiss);font-size:0.75rem;text-transform:uppercase;letter-spacing:2px;margin-top:8px;">Constructing…</p>
+      </div>
+
+      <div id="agent-result" class="result-area" style="display:none;">
+        <h3>Agent Configuration</h3>
+        <div class="agent-section" id="agent-section-name">
+          <h4>Name</h4>
+          <div class="content-box"></div>
+          <button class="copy-btn-small" onclick="copyAgentSection('name')">Copy</button>
+        </div>
+        <div class="agent-section" id="agent-section-description">
+          <h4>Description</h4>
+          <div class="content-box"></div>
+          <button class="copy-btn-small" onclick="copyAgentSection('description')">Copy</button>
+        </div>
+        <div class="agent-section" id="agent-section-instructions">
+          <h4>System Instructions</h4>
+          <div class="content-box code-block"></div>
+          <button class="copy-btn-small" onclick="copyAgentSection('instructions')">Copy</button>
+        </div>
+        <div class="agent-section" id="agent-section-starters">
+          <h4>Conversation Starters</h4>
+          <div class="content-box"></div>
+          <button class="copy-btn-small" onclick="copyAgentSection('starters')">Copy</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── TAB 3: ANTHROPIC SKILLS ──────────────────────────── -->
+    <section id="anthropic-skills" class="section">
+      <div class="section-head">
+        <svg class="motif" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="44" height="44" fill="#C41E3A"/>
+          <!-- Warli sun -->
+          <circle cx="22" cy="22" r="8" fill="white"/>
+          <circle cx="22" cy="22" r="4" fill="#C41E3A"/>
+          <line x1="22" y1="10" x2="22" y2="6" stroke="white" stroke-width="2" stroke-linecap="round"/>
+          <line x1="22" y1="34" x2="22" y2="38" stroke="white" stroke-width="2" stroke-linecap="round"/>
+          <line x1="10" y1="22" x2="6" y2="22" stroke="white" stroke-width="2" stroke-linecap="round"/>
+          <line x1="34" y1="22" x2="38" y2="22" stroke="white" stroke-width="2" stroke-linecap="round"/>
+          <line x1="14" y1="14" x2="11" y2="11" stroke="white" stroke-width="2" stroke-linecap="round"/>
+          <line x1="30" y1="14" x2="33" y2="11" stroke="white" stroke-width="2" stroke-linecap="round"/>
+          <line x1="14" y1="30" x2="11" y2="33" stroke="white" stroke-width="2" stroke-linecap="round"/>
+          <line x1="30" y1="30" x2="33" y2="33" stroke="white" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <h2>Anthropic Agent Skills</h2>
+      </div>
+      <p class="section-desc">Create modular .skill packages for Claude Code and Anthropic agents.</p>
+
+      <div class="skill-type-grid">
+        <div class="skill-type-card selected" data-skill-type="workflow">
+          <div class="skill-type-icon">🔄</div>
+          <div class="skill-type-name">Workflow</div>
+          <div class="skill-type-desc">Multi-step processes</div>
+        </div>
+        <div class="skill-type-card" data-skill-type="tool">
+          <div class="skill-type-icon">🔧</div>
+          <div class="skill-type-name">Tool</div>
+          <div class="skill-type-desc">Format handlers &amp; APIs</div>
+        </div>
+        <div class="skill-type-card" data-skill-type="reference">
+          <div class="skill-type-icon">📚</div>
+          <div class="skill-type-name">Reference</div>
+          <div class="skill-type-desc">Guidelines &amp; standards</div>
+        </div>
+        <div class="skill-type-card" data-skill-type="capabilities">
+          <div class="skill-type-icon">⚡</div>
+          <div class="skill-type-name">Capabilities</div>
+          <div class="skill-type-desc">Extend agent abilities</div>
+        </div>
+      </div>
+
+      <div class="input-group">
+        <label for="anthropic-skill-name">Skill Name (kebab-case):</label>
+        <input type="text" id="anthropic-skill-name" placeholder="e.g. clinical-trial-analyzer, pdf-handler">
+      </div>
+
+      <div class="input-group">
+        <label for="anthropic-skill-description">What should this skill do?</label>
+        <textarea id="anthropic-skill-description" placeholder="Describe the skill's purpose, when it should be used, and what capabilities it provides..."></textarea>
+      </div>
+
+      <div class="checkbox-group">
+        <label><input type="checkbox" id="include-scripts" checked> Include Python/Bash scripts</label>
+        <label><input type="checkbox" id="include-references"> Include reference docs</label>
+        <label><input type="checkbox" id="include-assets"> Include assets folder</label>
+      </div>
+
+      <div class="toolbar">
+        <span class="inline-status" id="anthropic-inline-status"><span id="anthropic-progress">0%</span></span>
+        <button class="action-btn secondary" id="analyze-skill-btn">Analyze Requirements</button>
+        <button class="action-btn" id="build-anthropic-skill-btn">Generate Skill Package</button>
+      </div>
+
+      <div id="anthropic-skill-loader" style="display:none;text-align:center;padding:30px;">
+        <div class="loader"></div>
+        <p id="anthropic-skill-status" style="font-family:var(--font-swiss);font-size:0.75rem;text-transform:uppercase;letter-spacing:2px;margin-top:8px;">Analyzing…</p>
+      </div>
+
+      <div id="anthropic-skill-analysis" class="result-area" style="display:none;margin-top:20px;">
+        <h3>Skill Analysis</h3>
+        <div id="anthropic-skill-structure" class="analysis-content"></div>
+      </div>
+
+      <div id="anthropic-skill-result" class="result-area" style="display:none;">
+        <h3>Generated Skill Package</h3>
+        <div class="skill-file-tabs">
+          <button class="skill-file-tab active" data-file="skill-md">SKILL.md</button>
+          <button class="skill-file-tab" data-file="scripts">Scripts</button>
+          <button class="skill-file-tab" data-file="structure">Structure</button>
+        </div>
+        <div id="skill-file-content" class="skill-file-display">
+          <button class="copy-btn" style="position:absolute;top:8px;right:8px;z-index:10;" onclick="copyToClipboard('anthropic-skill-preview')">Copy</button>
+          <pre id="anthropic-skill-preview"></pre>
+        </div>
+        <div class="toolbar" style="margin-top:16px;">
+          <button class="action-btn secondary" id="regenerate-skill-btn">Regenerate</button>
+          <button class="action-btn" id="download-anthropic-skill-btn">Download .skill File</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── TAB 4: PLUGIN BUILDER ─────────────────────────────── -->
+    <section id="plugin-builder" class="section">
+      <div class="section-head">
+        <svg class="motif" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="44" height="44" fill="#C41E3A"/>
+          <!-- Warli hut motif -->
+          <polygon points="22,4 6,20 38,20" fill="white"/>
+          <rect x="8" y="20" width="28" height="18" fill="white"/>
+          <rect x="17" y="26" width="10" height="12" fill="#C41E3A"/>
+          <rect x="10" y="23" width="7" height="7" fill="#C41E3A"/>
+        </svg>
+        <h2>Plugin Builder</h2>
+      </div>
+      <p class="section-desc">Design a complete Claude Code plugin. Venice generates commands, agents, skills, hooks and MCP config — then packages everything into a self-contained build-instructions MD for any AI to scaffold.</p>
+
+      <div class="input-group">
+        <label for="plugin-name">Plugin Name (kebab-case):</label>
+        <input type="text" id="plugin-name" placeholder="e.g. git-standup-reporter, code-review-bot">
+      </div>
+
+      <div class="input-group">
+        <label for="plugin-description">What does this plugin do?</label>
+        <textarea id="plugin-description" placeholder="Describe the plugin's purpose, primary use cases, who will use it, and any integration points (APIs, files, services)..."></textarea>
+      </div>
+
+      <div class="toolbar">
+        <label for="plugin-model-select">Model:</label>
+        <select id="plugin-model-select" style="width:auto;">
+          <option value="deepseek-r1-671b-thinking">DeepSeek R1 671B</option>
+          <option value="zai-org-glm-4.7">GLM 4.7</option>
+          <option value="gemini-3-pro-preview">Gemini 3 Pro</option>
+          <option value="qwen3-235b-a22b-thinking-2507">Qwen 3 235B</option>
+          <option value="venice-uncensored">Venice Uncensored</option>
+        </select>
+        <span class="inline-status" id="plugin-inline-status"><span id="plugin-progress">0%</span></span>
+        <button class="action-btn" id="build-plugin-btn">Generate Plugin</button>
+      </div>
+
+      <div id="plugin-loader" style="display:none;text-align:center;padding:30px;">
+        <div class="loader"></div>
+        <p id="plugin-status" style="font-family:var(--font-swiss);font-size:0.75rem;text-transform:uppercase;letter-spacing:2px;margin-top:8px;">Designing plugin architecture…</p>
+      </div>
+
+      <!-- Component Graph (shown after generation) -->
+      <div id="plugin-result" style="display:none;">
+
+        <!-- Swiss-rule separator with Warli figures -->
+        <div class="warli-divider">
+          <svg viewBox="0 0 1080 32" preserveAspectRatio="none" style="width:100%;height:32px;">
+            <rect width="1080" height="32" fill="#1A1A1A"/>
+            <!-- repeating small figures -->
+            <g fill="white">
+              <circle cx="40" cy="8" r="4"/>
+              <polygon points="40,12 34,28 46,28"/>
+              <circle cx="120" cy="8" r="4"/>
+              <polygon points="120,12 114,28 126,28"/>
+              <circle cx="200" cy="8" r="4"/>
+              <polygon points="200,12 194,28 206,28"/>
+              <circle cx="280" cy="8" r="4"/>
+              <polygon points="280,12 274,28 286,28"/>
+              <circle cx="360" cy="8" r="4"/>
+              <polygon points="360,12 354,28 366,28"/>
+              <circle cx="440" cy="8" r="4"/>
+              <polygon points="440,12 434,28 446,28"/>
+              <circle cx="520" cy="8" r="4"/>
+              <polygon points="520,12 514,28 526,28"/>
+              <circle cx="600" cy="8" r="4"/>
+              <polygon points="600,12 594,28 606,28"/>
+              <circle cx="680" cy="8" r="4"/>
+              <polygon points="680,12 674,28 686,28"/>
+              <circle cx="760" cy="8" r="4"/>
+              <polygon points="760,12 754,28 766,28"/>
+              <circle cx="840" cy="8" r="4"/>
+              <polygon points="840,12 834,28 846,28"/>
+              <circle cx="920" cy="8" r="4"/>
+              <polygon points="920,12 914,28 926,28"/>
+              <circle cx="1000" cy="8" r="4"/>
+              <polygon points="1000,12 994,28 1006,28"/>
+            </g>
+          </svg>
+        </div>
+
+        <!-- central plugin node -->
+        <div class="plugin-graph">
+          <div class="graph-center">
+            <div class="graph-node-main" id="plugin-center-label">MY-PLUGIN</div>
+            <div class="graph-connector"></div>
+          </div>
+
+          <!-- 5 spoke nodes -->
+          <div class="graph-spoke">
+            <div class="graph-node" data-node="commands" onclick="selectPluginNode(this)">
+              <span class="graph-node-icon">⚡</span>
+              <span class="graph-node-label">Commands</span>
+            </div>
+            <div class="graph-node" data-node="agents" onclick="selectPluginNode(this)">
+              <span class="graph-node-icon">🤖</span>
+              <span class="graph-node-label">Agents</span>
+            </div>
+            <div class="graph-node" data-node="skills" onclick="selectPluginNode(this)">
+              <span class="graph-node-icon">🎯</span>
+              <span class="graph-node-label">Skills</span>
+            </div>
+            <div class="graph-node" data-node="hooks" onclick="selectPluginNode(this)">
+              <span class="graph-node-icon">🪝</span>
+              <span class="graph-node-label">Hooks</span>
+            </div>
+            <div class="graph-node" data-node="mcp" onclick="selectPluginNode(this)">
+              <span class="graph-node-icon">🔌</span>
+              <span class="graph-node-label">MCP Servers</span>
+            </div>
+          </div>
+
+          <!-- node detail cards -->
+          <div class="node-cards-area" id="node-cards-area"></div>
+        </div>
+
+        <!-- download -->
+        <div class="toolbar" style="margin-top:24px;border-top:2px solid var(--swiss-black);padding-top:16px;">
+          <button class="action-btn secondary" id="regenerate-plugin-btn">Regenerate</button>
+          <button class="action-btn" id="download-plugin-md-btn" style="background:var(--swiss-black);">Download Build Instructions MD</button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer>
+    Powered by <a href="https://venice.ai" target="_blank">Venice.ai</a> &nbsp;·&nbsp; Warli × Swiss Design
+  </footer>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script src="app.js"></script>
 </body>
-
 </html>

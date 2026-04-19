@@ -953,4 +953,351 @@ Wrap the response in a JSON code block.`;
 
     // --- INITIALIZE: Load Venice models on page load ---
     loadVeniceModels();
+
+    // --- FEATURE 4: PLUGIN BUILDER ---
+    let currentPlugin = null; // { name, description, components: {commands,agents,skills,hooks,mcp} }
+
+    const buildPluginBtn = document.getElementById('build-plugin-btn');
+    const pluginLoader = document.getElementById('plugin-loader');
+    const pluginStatus = document.getElementById('plugin-status');
+    const pluginResult = document.getElementById('plugin-result');
+    const pluginInlineStatus = document.getElementById('plugin-inline-status');
+    const pluginProgress = document.getElementById('plugin-progress');
+    const pluginCenterLabel = document.getElementById('plugin-center-label');
+    const pluginModelSelect = document.getElementById('plugin-model-select');
+
+    // Populate plugin model dropdown when models load
+    const origPopulate = populateModelDropdowns;
+    populateModelDropdowns = function () {
+        origPopulate();
+        const pluginSel = document.getElementById('plugin-model-select');
+        if (pluginSel && loadedModels.length > 0) {
+            pluginSel.innerHTML = '';
+            loadedModels.forEach(m => {
+                const o = document.createElement('option');
+                o.value = m.id;
+                o.textContent = m.name || m.id;
+                pluginSel.appendChild(o);
+            });
+        }
+    };
+
+    if (buildPluginBtn) {
+        buildPluginBtn.addEventListener('click', async () => {
+            const name = document.getElementById('plugin-name').value.trim();
+            const description = document.getElementById('plugin-description').value.trim();
+            if (!name || !description) return showToast('Please provide plugin name and description.');
+
+            const kebabOk = /^[a-z0-9]+(-[a-z0-9]+)*$/.test(name);
+            if (!kebabOk) return showToast('Plugin name must be kebab-case (e.g. my-plugin)');
+
+            buildPluginBtn.disabled = true;
+            pluginResult.style.display = 'none';
+            pluginLoader.style.display = 'block';
+            pluginInlineStatus.style.display = 'block';
+            pluginProgress.innerText = '0%';
+
+            let prog = 0;
+            const iv = setInterval(() => {
+                if (prog < 88) { prog += Math.random() * 4 + 1; if (prog > 88) prog = 88; }
+                pluginProgress.innerText = Math.floor(prog) + '%';
+            }, 300);
+
+            const model = pluginModelSelect ? pluginModelSelect.value : 'zai-org-glm-4.7';
+            const components = {};
+            const steps = [
+                { key: 'commands', label: 'Designing slash commands…',
+                  prompt: `Design slash commands for a Claude Code plugin named "${name}".
+Description: ${description}
+
+Return a JSON array of command objects:
+[{"name":"/cmd-name","description":"what it does","usage":"/cmd-name [args]","implementation":"# brief pseudocode or shell steps"}]
+
+Include 2-4 commands that make sense for this plugin. Wrap in a JSON code block.` },
+                { key: 'agents', label: 'Designing sub-agents…',
+                  prompt: `Design sub-agents for a Claude Code plugin named "${name}".
+Description: ${description}
+
+Return a JSON array:
+[{"name":"agent-name","role":"what this agent specialises in","systemPrompt":"concise system prompt for this agent","when_to_invoke":"trigger condition"}]
+
+Include 1-3 agents. Wrap in a JSON code block.` },
+                { key: 'skills', label: 'Generating skill definitions…',
+                  prompt: `Design skill definitions for a Claude Code plugin named "${name}".
+Description: ${description}
+
+Return a JSON array:
+[{"name":"skill-name","type":"workflow|tool|reference|capabilities","description":"one line","skillMdOutline":"bullet list of SKILL.md sections"}]
+
+Include 1-3 skills. Wrap in a JSON code block.` },
+                { key: 'hooks', label: 'Configuring hooks…',
+                  prompt: `Design Claude Code hooks for a plugin named "${name}".
+Description: ${description}
+
+Return a JSON array:
+[{"event":"PreToolUse|PostToolUse|Stop|Notification","matcher":"tool or pattern to match","command":"shell command to run","purpose":"why this hook exists"}]
+
+Include 1-3 relevant hooks. Wrap in a JSON code block.` },
+                { key: 'mcp', label: 'Defining MCP servers…',
+                  prompt: `Design MCP server configuration for a Claude Code plugin named "${name}".
+Description: ${description}
+
+Return a JSON array:
+[{"serverName":"name","transport":"stdio|sse","command":"how to start it","tools":["tool1","tool2"],"purpose":"what this MCP server provides"}]
+
+Include 1-2 MCP servers if applicable, or an empty array if none are needed. Wrap in a JSON code block.` }
+            ];
+
+            for (const step of steps) {
+                pluginStatus.textContent = step.label;
+                const resp = await callApi('/api/chat', {
+                    model,
+                    venice_parameters: { include_venice_system_prompt: true, enable_web_search: 'off' },
+                    messages: [
+                        { role: 'system', content: step.prompt },
+                        { role: 'user', content: 'Generate now.' }
+                    ]
+                });
+
+                if (resp && resp.choices) {
+                    const raw = resp.choices[0].message.content;
+                    const s = raw.indexOf('['), e = raw.lastIndexOf(']');
+                    if (s !== -1 && e !== -1) {
+                        try { components[step.key] = JSON.parse(raw.substring(s, e + 1)); }
+                        catch { components[step.key] = []; }
+                    } else {
+                        components[step.key] = [];
+                    }
+                } else {
+                    components[step.key] = [];
+                }
+            }
+
+            currentPlugin = { name, description, components };
+            clearInterval(iv);
+            pluginProgress.innerText = '100%';
+            pluginLoader.style.display = 'none';
+            pluginInlineStatus.style.display = 'none';
+            buildPluginBtn.disabled = false;
+
+            // Update center label
+            if (pluginCenterLabel) pluginCenterLabel.textContent = name.toUpperCase();
+
+            pluginResult.style.display = 'block';
+            pluginResult.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            showToast('Plugin generated!');
+
+            // Reset node highlight
+            document.querySelectorAll('.graph-node').forEach(n => n.classList.remove('active'));
+            document.getElementById('node-cards-area').innerHTML = '';
+            document.getElementById('node-cards-area').classList.remove('visible');
+        });
+    }
+
+    // Node click — show cards for that component
+    window.selectPluginNode = function (el) {
+        if (!currentPlugin) return;
+        document.querySelectorAll('.graph-node').forEach(n => n.classList.remove('active'));
+        el.classList.add('active');
+
+        const nodeKey = el.dataset.node;
+        const items = currentPlugin.components[nodeKey] || [];
+        const area = document.getElementById('node-cards-area');
+
+        if (items.length === 0) {
+            area.innerHTML = '<div class="node-card"><div class="node-card-header"><span class="node-card-title">No items generated</span></div></div>';
+            area.classList.add('visible');
+            return;
+        }
+
+        const typeLabel = { commands: 'Command', agents: 'Agent', skills: 'Skill', hooks: 'Hook', mcp: 'MCP Server' };
+
+        area.innerHTML = items.map(item => {
+            const title = item.name || item.serverName || '(unnamed)';
+            const content = JSON.stringify(item, null, 2);
+            return `
+<div class="node-card">
+  <div class="node-card-header">
+    <span class="node-card-title">${title}</span>
+    <span class="node-card-type">${typeLabel[nodeKey] || nodeKey}</span>
+  </div>
+  <div class="node-card-content">${escapeHtml(content)}</div>
+</div>`;
+        }).join('');
+        area.classList.add('visible');
+    };
+
+    function escapeHtml(str) {
+        return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    // Regenerate plugin
+    const regeneratePluginBtn = document.getElementById('regenerate-plugin-btn');
+    if (regeneratePluginBtn) {
+        regeneratePluginBtn.addEventListener('click', () => {
+            if (buildPluginBtn) buildPluginBtn.click();
+        });
+    }
+
+    // Download build instructions MD
+    const downloadPluginMdBtn = document.getElementById('download-plugin-md-btn');
+    if (downloadPluginMdBtn) {
+        downloadPluginMdBtn.addEventListener('click', () => {
+            if (!currentPlugin) return showToast('Generate a plugin first.');
+            const md = buildPluginMarkdown(currentPlugin);
+            const el = document.createElement('a');
+            el.href = URL.createObjectURL(new Blob([md], { type: 'text/markdown' }));
+            el.download = `${currentPlugin.name}-plugin-build-instructions.md`;
+            document.body.appendChild(el);
+            el.click();
+            document.body.removeChild(el);
+            showToast('Build instructions downloaded!');
+        });
+    }
+
+    function buildPluginMarkdown(plugin) {
+        const { name, description, components } = plugin;
+        const now = new Date().toISOString().split('T')[0];
+        let md = `# ${name} — Claude Code Plugin Build Instructions\n\n`;
+        md += `> Generated ${now} via Prompt Optimizer · Warli×Swiss Edition\n\n`;
+        md += `## Overview\n\n${description}\n\n`;
+        md += `---\n\n`;
+
+        // File tree
+        md += `## File Tree\n\n\`\`\`\n${name}/\n`;
+        md += `├── CLAUDE.md\n`;
+        if (components.commands?.length) {
+            md += `├── .claude/\n`;
+            md += `│   └── commands/\n`;
+            components.commands.forEach((c, i) => {
+                const isLast = i === components.commands.length - 1;
+                const cname = (c.name || 'command').replace(/^\//, '');
+                md += `│       ${isLast ? '└' : '├'}── ${cname}.md\n`;
+            });
+        }
+        if (components.skills?.length) {
+            md += `├── skills/\n`;
+            components.skills.forEach((s, i) => {
+                const isLast = i === components.skills.length - 1;
+                md += `│   ${isLast ? '└' : '├'}── ${s.name || 'skill'}/\n`;
+                md += `│   ${isLast ? ' ' : '│'}   └── SKILL.md\n`;
+            });
+        }
+        if (components.mcp?.some(m => m.command)) {
+            md += `├── mcp-servers/\n`;
+            components.mcp.forEach((m, i) => {
+                const isLast = i === components.mcp.length - 1;
+                md += `│   ${isLast ? '└' : '├'}── ${m.serverName || 'server'}/\n`;
+            });
+        }
+        md += `└── README.md\n\`\`\`\n\n---\n\n`;
+
+        // CLAUDE.md
+        md += `## File Contents\n\n`;
+        md += `### \`CLAUDE.md\`\n\n\`\`\`markdown\n`;
+        md += `# ${name}\n\n${description}\n\n`;
+        md += `## Available Commands\n\n`;
+        (components.commands || []).forEach(c => {
+            md += `- \`${c.name}\`: ${c.description || ''}\n`;
+        });
+        md += `\n## Agents\n\n`;
+        (components.agents || []).forEach(a => {
+            md += `- **${a.name}**: ${a.role || ''}\n`;
+        });
+        md += `\n## Skills\n\n`;
+        (components.skills || []).forEach(s => {
+            md += `- \`${s.name}\`: ${s.description || ''}\n`;
+        });
+        md += `\`\`\`\n\n`;
+
+        // Commands
+        if (components.commands?.length) {
+            md += `### Slash Commands\n\n`;
+            components.commands.forEach(c => {
+                const fname = (c.name || 'cmd').replace(/^\//, '');
+                md += `#### \`.claude/commands/${fname}.md\`\n\n\`\`\`markdown\n`;
+                md += `# ${c.name}\n\n${c.description || ''}\n\n## Usage\n\n\`${c.usage || c.name}\`\n\n## Implementation\n\n${c.implementation || ''}\n`;
+                md += `\`\`\`\n\n`;
+            });
+        }
+
+        // Agents
+        if (components.agents?.length) {
+            md += `### Sub-Agents\n\n`;
+            components.agents.forEach(a => {
+                md += `#### Agent: \`${a.name}\`\n\n`;
+                md += `**Role:** ${a.role || ''}\n\n`;
+                md += `**When to invoke:** ${a.when_to_invoke || ''}\n\n`;
+                md += `**System Prompt:**\n\n\`\`\`\n${a.systemPrompt || ''}\n\`\`\`\n\n`;
+            });
+        }
+
+        // Skills
+        if (components.skills?.length) {
+            md += `### Skills\n\n`;
+            components.skills.forEach(s => {
+                md += `#### \`skills/${s.name}/SKILL.md\`\n\n\`\`\`markdown\n`;
+                md += `---\nname: ${s.name}\ndescription: ${s.description || ''}\n---\n\n`;
+                md += `# ${s.name}\n\n## Overview\n\n${s.description || ''}\n\n`;
+                md += `## Sections\n\n${(s.skillMdOutline || '').replace(/^/gm, '- ')}\n`;
+                md += `\`\`\`\n\n`;
+            });
+        }
+
+        // Hooks
+        if (components.hooks?.length) {
+            md += `### Hooks Configuration\n\nAdd to \`.claude/settings.json\`:\n\n\`\`\`json\n`;
+            const hookConfig = {
+                hooks: {}
+            };
+            components.hooks.forEach(h => {
+                if (!hookConfig.hooks[h.event]) hookConfig.hooks[h.event] = [];
+                hookConfig.hooks[h.event].push({
+                    matcher: h.matcher || '',
+                    hooks: [{ type: 'command', command: h.command || '' }]
+                });
+            });
+            md += JSON.stringify(hookConfig, null, 2);
+            md += `\n\`\`\`\n\n`;
+        }
+
+        // MCP
+        if (components.mcp?.length) {
+            md += `### MCP Server Configuration\n\nAdd to \`.claude/settings.json\` mcpServers section:\n\n\`\`\`json\n`;
+            const mcpConfig = { mcpServers: {} };
+            components.mcp.forEach(m => {
+                if (m.serverName && m.command) {
+                    mcpConfig.mcpServers[m.serverName] = {
+                        command: m.command,
+                        transport: m.transport || 'stdio'
+                    };
+                }
+            });
+            md += JSON.stringify(mcpConfig, null, 2);
+            md += `\n\`\`\`\n\n`;
+        }
+
+        // Build steps
+        md += `---\n\n## Step-by-Step Build Instructions\n\n`;
+        md += `Follow these steps for any AI agent (Claude Code, GPT, Gemini) to scaffold this plugin:\n\n`;
+        md += `1. Create the root directory: \`mkdir ${name} && cd ${name}\`\n`;
+        md += `2. Create \`CLAUDE.md\` with the content shown above.\n`;
+        if (components.commands?.length) {
+            md += `3. Create \`.claude/commands/\` directory and write each command \`.md\` file as shown above.\n`;
+        }
+        if (components.skills?.length) {
+            md += `4. Create \`skills/\` directory with one subdirectory per skill, each containing a \`SKILL.md\`.\n`;
+        }
+        if (components.hooks?.length) {
+            md += `5. Create or update \`.claude/settings.json\` with the hooks configuration above.\n`;
+        }
+        if (components.mcp?.length) {
+            md += `6. Add the MCP server entries to \`.claude/settings.json\` under \`mcpServers\`.\n`;
+        }
+        md += `7. Create \`README.md\` documenting the plugin for end users.\n`;
+        md += `8. Test with: \`claude code .\` and invoke \`${(components.commands?.[0]?.name) || '/help'}\`\n\n`;
+        md += `---\n\n*Generated by Prompt Optimizer · Warli×Swiss Edition*\n`;
+
+        return md;
+    }
 });
