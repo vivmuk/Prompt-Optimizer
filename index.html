@@ -298,6 +298,17 @@
         <h3>Optimized Result</h3>
         <div id="optimized-output" contenteditable="true" style="white-space:pre-wrap;min-height:80px;"></div>
 
+        <!-- Chatbot quick-launch links -->
+        <div class="chatbot-links" id="chatbot-links">
+          <div class="chatbot-links-title">🚀 Use this prompt in your favourite chatbot</div>
+          <div class="chatbot-links-row">
+            <a href="https://chat.openai.com" target="_blank" rel="noopener noreferrer" class="chatbot-link-btn chatgpt">💬 ChatGPT</a>
+            <a href="https://claude.ai" target="_blank" rel="noopener noreferrer" class="chatbot-link-btn claude">✦ Claude</a>
+            <a href="https://gemini.google.com" target="_blank" rel="noopener noreferrer" class="chatbot-link-btn gemini">✦ Gemini</a>
+          </div>
+          <p class="chatbot-link-hint">Copy your optimized prompt above, then click a chatbot to open it and paste.</p>
+        </div>
+
         <div class="toolbar" style="margin-top:20px;">
           <label for="answer-model-select">Answer Model:</label>
           <select id="answer-model-select" style="width:auto;"></select>
@@ -368,6 +379,16 @@
           <h4>Conversation Starters</h4>
           <div class="content-box"></div>
           <button class="copy-btn-small" onclick="copyAgentSection('starters')">Copy</button>
+        </div>
+        <!-- Chatbot quick-launch links -->
+        <div class="chatbot-links" style="margin-top:15px;">
+          <div class="chatbot-links-title">🚀 Deploy your agent in</div>
+          <div class="chatbot-links-row">
+            <a href="https://chat.openai.com" target="_blank" rel="noopener noreferrer" class="chatbot-link-btn chatgpt">💬 ChatGPT</a>
+            <a href="https://claude.ai" target="_blank" rel="noopener noreferrer" class="chatbot-link-btn claude">✦ Claude</a>
+            <a href="https://gemini.google.com" target="_blank" rel="noopener noreferrer" class="chatbot-link-btn gemini">✦ Gemini</a>
+          </div>
+          <p class="chatbot-link-hint">Copy the System Instructions above, then open your chosen chatbot to create a custom agent.</p>
         </div>
       </div>
     </section>
