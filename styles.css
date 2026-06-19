@@ -814,6 +814,94 @@ select {
 }
 
 /* ============================================================
+   LOOP DESIGN TAB
+   ============================================================ */
+.loop-type-row { display: flex; justify-content: flex-start; }
+
+.loop-type-badge {
+  display: inline-block;
+  background: var(--swiss-red);
+  color: var(--warli);
+  font-family: var(--font-swiss);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  padding: 8px 16px;
+  border: 2px solid var(--swiss-black);
+}
+
+.critic-finding {
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--grid-light);
+}
+.critic-finding:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+
+.critic-finding-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.critic-finding-head strong {
+  font-family: var(--font-swiss);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.severity-tag {
+  font-family: var(--font-swiss);
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding: 2px 8px;
+  color: var(--warli);
+  flex-shrink: 0;
+}
+.severity-tag.high { background: var(--swiss-red); }
+.severity-tag.medium { background: var(--terra-dark); }
+.severity-tag.low { background: var(--swiss-black); }
+
+.critic-fix {
+  margin-top: 4px;
+  color: #555;
+  font-size: 0.85rem;
+}
+
+.critic-approved {
+  font-family: var(--font-swiss);
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--swiss-black);
+}
+
+#loop-output-text {
+  white-space: pre-wrap;
+  background: var(--swiss-black);
+  color: #F8F8F2;
+  padding: 16px;
+  font-family: 'SF Mono', 'Fira Mono', monospace;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  overflow-x: auto;
+  max-height: 520px;
+  margin: 0;
+}
+
+.mermaid-container {
+  background: var(--warli);
+  padding: 20px;
+  overflow-x: auto;
+  text-align: center;
+  border: none;
+}
+.mermaid-container svg { max-width: 100%; }
+
+/* ============================================================
    WARLI SECTION DIVIDERS
    ============================================================ */
 .warli-divider {
