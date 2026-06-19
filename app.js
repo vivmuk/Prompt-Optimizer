@@ -1417,4 +1417,349 @@ Include 1-2 MCP servers if applicable, or an empty array if none are needed. Wra
 
         return md;
     }
+
+    // --- FEATURE 5: LOOP DESIGN (Loop Engineering Compiler) ---
+    let currentLoopSpec = null;      // final, critic-approved loop specification
+    let currentLoopCritique = null;  // { findings, verdict }
+
+    const loopPromptInput = document.getElementById('loop-prompt');
+    const loopModelSelect = document.getElementById('loop-model-select');
+    const compileLoopBtn = document.getElementById('compile-loop-btn');
+    const loopLoader = document.getElementById('loop-loader');
+    const loopStatus = document.getElementById('loop-status');
+    const loopInlineStatus = document.getElementById('loop-inline-status');
+    const loopProgress = document.getElementById('loop-progress');
+    const loopResult = document.getElementById('loop-result');
+    const loopTypeBadge = document.getElementById('loop-type-badge');
+    const loopCriticFindings = document.getElementById('loop-critic-findings');
+    const loopOutputText = document.getElementById('loop-output-text');
+    const loopMermaidRender = document.getElementById('loop-mermaid-render');
+    const loopCopyBtn = document.getElementById('loop-copy-btn');
+    const regenerateLoopBtn = document.getElementById('regenerate-loop-btn');
+    const downloadLoopJsonBtn = document.getElementById('download-loop-json-btn');
+    const downloadLoopMdBtn = document.getElementById('download-loop-md-btn');
+
+    // Keep the Loop Design model dropdown populated whenever models (re)load
+    const origPopulateForLoop = populateModelDropdowns;
+    populateModelDropdowns = function () {
+        origPopulateForLoop();
+        const sel = document.getElementById('loop-model-select');
+        if (sel && loadedModels.length > 0) {
+            sel.innerHTML = '';
+            loadedModels.forEach(m => {
+                const o = document.createElement('option');
+                o.value = m.id;
+                o.textContent = m.name || m.id;
+                sel.appendChild(o);
+            });
+        }
+    };
+
+    function extractLoopJson(raw) {
+        const s = raw.indexOf('{'), e = raw.lastIndexOf('}');
+        if (s === -1 || e === -1) return null;
+        try { return JSON.parse(raw.substring(s, e + 1)); } catch (err) { return null; }
+    }
+
+    const LOOP_COMPILER_SYSTEM_PROMPT = `You are a Loop Engineering Compiler. You do not rewrite prompts — you reverse-engineer a vague natural-language request into a repeatable, autonomous agent LOOP built from five mandatory parts: TRIGGER, ACTION, PROOF, MEMORY, STOP/REPEAT.
+
+REASONING FRAMEWORK — apply every step, in order:
+1. Extract Goal — the single outcome this loop is responsible for.
+2. Identify Trigger — classify as schedule_based, event_based, human_initiated, data_change, or external_api_update, and describe it concretely.
+3. Define Loop Actions — break the request into an ordered list of small, discrete, repeatable actions.
+4. Define Proof — objective, falsifiable evidence the loop worked (counts, thresholds, test results, citations, scores). If proof cannot be produced, the loop is incomplete — never accept vague success criteria like "good" or "better."
+5. Define Memory — identify exactly what must persist between runs (previous outputs, sources already used, preferences, scores, failures, baselines). Infer this automatically from the request; do not ask the user.
+6. Define Stop Conditions — goal achieved, quality threshold met, budget/iteration cap reached, human approval required, or no actionable work exists. Never produce an open-ended instruction like "keep improving."
+7. Add an Optimization Loop — a reflection step that reviews what worked, what failed, and what to improve next run, and stores the lesson as memory.
+
+CLASSIFY the request into exactly one (or a "+" combination of two) of these Loop Types: Research Loop, Monitoring Loop, Content Loop, Learning Loop, Coding Loop, Workflow Automation Loop, Sales Loop, Marketing Loop, Knowledge Management Loop, Multi-Agent Loop.
+
+AUTOMATICALLY APPLY these advanced patterns wherever relevant:
+- Evaluator-Optimizer (create → evaluate → improve) whenever quality matters.
+- Research Synthesis (search → extract → compare → synthesize → verify) whenever research is requested.
+- Multi-Agent Pattern (e.g. Research Agent, Writer Agent, Reviewer Agent, Publisher Agent) when complexity is high.
+- Reflection Pattern (review accuracy, completeness and usefulness after every run; store lessons learned) on every loop.
+
+SAFETY RULES — bake these into constraints, stop_conditions and agent_instructions, never skip them:
+- Never let the same agent generate AND approve risky work — require a second verifier for production, financial, security, legal, medical or customer-facing actions.
+- Start read-only when the domain is risky; add write/publish permissions only after the loop has proven itself.
+- Use isolated environments (branches, worktrees, staging, sandboxes) for anything touching code or production systems.
+- Cap iterations, runtime or budget explicitly — every loop needs a hard ceiling.
+- Require evidence (logs, screenshots, test output, citations, diffs) over model confidence.
+- Store failures as memory so the loop does not repeat the same mistake.
+- Stop honestly — a blocked loop must say it is blocked, never pretend success.
+
+OUTPUT — return a single JSON object with EXACTLY these keys, and nothing else (no preamble, no explanation, no markdown fences):
+{
+  "loop_type": "one of the 10 categories above, or a '+' combination",
+  "goal": "single clear sentence describing the outcome",
+  "trigger": { "type": "schedule_based|event_based|human_initiated|data_change|external_api_update", "description": "concrete description, e.g. a cron schedule, webhook, or condition" },
+  "actions": ["ordered, discrete action 1", "action 2"],
+  "proof": ["objective, falsifiable proof check 1"],
+  "memory": ["state item that must persist between runs"],
+  "constraints": ["scope, permission, budget or iteration limits"],
+  "stop_conditions": ["stop condition 1"],
+  "optimization_loop": ["reflection step: what worked / what failed / what to improve", "store the lesson as memory"],
+  "agent_instructions": "one long string: a complete, ready-to-paste agent system prompt covering Purpose, Trigger, Inputs, Loop State/Memory, Cycle Instructions, Proof/Verification, Stop Conditions, Failure Policy and Output Format",
+  "human_readable_markdown": "one long markdown string: Loop Type, Trigger, the action chain (action1 -> action2 -> ...), Proof, Memory, Stop, Optimization, written in plain English for a human reader",
+  "mermaid_diagram": "one Mermaid flowchart string starting with 'flowchart TD' showing Trigger -> each action in sequence -> a Proof/decision node -> Stop, or looping back through the Optimization/Memory step. Use short node labels and valid Mermaid syntax only — no markdown fences inside this string."
+}
+
+Rules:
+- Every loop must have at least one proof check and at least one stop condition; if either is missing from the user's request, infer the most sensible one and state that assumption inside agent_instructions.
+- Prefer small, bounded actions over vague ones.
+- Return only the raw JSON object described above.`;
+
+    const LOOP_CRITIC_SYSTEM_PROMPT = `You are the Loop Critic — an independent second reviewer for Loop Engineering specifications. Never trust the compiler's output at face value.
+
+Audit the compiled loop you are given against this checklist, in order:
+1. Missing or vague TRIGGER — is it concrete enough to actually fire?
+2. Missing or unfalsifiable PROOF — can success be verified with evidence, or is it just confidence?
+3. Missing MEMORY — will the loop forget previous attempts, sources or failures it needs to avoid repeating?
+4. Weak STOP CONDITIONS — does it lack a max-iteration/budget cap, or a "no actionable work" exit?
+5. INFINITE LOOP RISK — could the actions and stop conditions combine into a cycle with no exit?
+6. UNSAFE AUTONOMY — does the loop let the same agent generate and ship risky (production, financial, security, legal, medical or customer-facing) work without a second verifier or human approval gate?
+
+For every problem found, record: category (trigger|proof|memory|stop_conditions|infinite_loop_risk|unsafe_autonomy|other), a one-sentence issue description, severity (high|medium|low), and fix_applied (the exact change you made to resolve it).
+
+Then produce final_loop: the complete, corrected loop specification with every fix already applied, using EXACTLY the same schema as the input (loop_type, goal, trigger, actions, proof, memory, constraints, stop_conditions, optimization_loop, agent_instructions, human_readable_markdown, mermaid_diagram). Keep human_readable_markdown, agent_instructions and mermaid_diagram consistent with any structural fixes you made.
+
+If the original loop already has no high-impact issues, return an empty findings array, verdict "approved", and final_loop as a lightly polished copy of the original.
+
+OUTPUT — return a single JSON object with EXACTLY these keys, and nothing else (no preamble, no explanation, no markdown fences):
+{
+  "findings": [ { "category": "trigger|proof|memory|stop_conditions|infinite_loop_risk|unsafe_autonomy|other", "issue": "...", "severity": "high|medium|low", "fix_applied": "..." } ],
+  "verdict": "approved|revised",
+  "final_loop": { "loop_type": "", "goal": "", "trigger": {}, "actions": [], "proof": [], "memory": [], "constraints": [], "stop_conditions": [], "optimization_loop": [], "agent_instructions": "", "human_readable_markdown": "", "mermaid_diagram": "" }
+}`;
+
+    if (compileLoopBtn) {
+        compileLoopBtn.addEventListener('click', async () => {
+            const userRequest = loopPromptInput.value.trim();
+            if (!userRequest) return showToast('Describe the task you want looped first.');
+
+            compileLoopBtn.disabled = true;
+            loopResult.style.display = 'none';
+            loopLoader.style.display = 'block';
+            loopInlineStatus.style.display = 'block';
+            loopProgress.innerText = '0%';
+
+            let progress = 0;
+            const iv = setInterval(() => {
+                if (progress < 88) { progress += Math.random() * 4 + 1; if (progress > 88) progress = 88; }
+                loopProgress.innerText = Math.floor(progress) + '%';
+            }, 300);
+
+            const model = loopModelSelect.value;
+
+            // STEP 1: Loop Compiler
+            loopStatus.textContent = 'Compiling loop: extracting goal, trigger, actions, proof…';
+            const compilerResp = await callApi('/api/chat', {
+                model,
+                venice_parameters: { include_venice_system_prompt: true, enable_web_search: 'off' },
+                messages: [
+                    { role: 'system', content: LOOP_COMPILER_SYSTEM_PROMPT },
+                    { role: 'user', content: `User request:\n"""\n${userRequest}\n"""\n\nCompile this into a Loop Engineering specification.` }
+                ]
+            });
+
+            const compiled = compilerResp && compilerResp.choices
+                ? extractLoopJson(compilerResp.choices[0].message.content)
+                : null;
+
+            if (!compiled) {
+                clearInterval(iv);
+                loopLoader.style.display = 'none';
+                loopInlineStatus.style.display = 'none';
+                compileLoopBtn.disabled = false;
+                return showToast('Loop compilation failed. Try again or switch model.');
+            }
+
+            // STEP 2: Loop Critic
+            loopStatus.textContent = 'Running Loop Critic: checking triggers, proof, memory, stop conditions…';
+            const criticResp = await callApi('/api/chat', {
+                model,
+                venice_parameters: { include_venice_system_prompt: true, enable_web_search: 'off' },
+                messages: [
+                    { role: 'system', content: LOOP_CRITIC_SYSTEM_PROMPT },
+                    { role: 'user', content: `Original user request:\n"""\n${userRequest}\n"""\n\nCompiled loop to critique and finalize:\n${JSON.stringify(compiled, null, 2)}` }
+                ]
+            });
+
+            const critique = criticResp && criticResp.choices
+                ? extractLoopJson(criticResp.choices[0].message.content)
+                : null;
+
+            clearInterval(iv);
+            loopProgress.innerText = '100%';
+
+            let findings = [];
+            let verdict = 'approved';
+            const finalSpec = (critique && critique.final_loop) ? critique.final_loop : compiled;
+            if (critique) {
+                findings = Array.isArray(critique.findings) ? critique.findings : [];
+                verdict = critique.verdict || (findings.length ? 'revised' : 'approved');
+            }
+
+            currentLoopSpec = finalSpec;
+            currentLoopCritique = { findings, verdict };
+
+            setTimeout(() => {
+                loopLoader.style.display = 'none';
+                loopInlineStatus.style.display = 'none';
+                compileLoopBtn.disabled = false;
+
+                renderLoopResult(finalSpec, findings, verdict);
+                loopResult.style.display = 'block';
+                loopResult.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                showToast('Loop compiled and reviewed!');
+            }, 400);
+        });
+    }
+
+    function renderLoopResult(spec, findings, verdict) {
+        loopTypeBadge.textContent = spec.loop_type || 'Loop';
+
+        if (!findings || findings.length === 0) {
+            loopCriticFindings.innerHTML = `<div class="critic-approved">✓ No high-impact issues found. Loop approved as compiled.</div>`;
+        } else {
+            loopCriticFindings.innerHTML = findings.map(f => `
+                <div class="critic-finding">
+                    <div class="critic-finding-head">
+                        <span class="severity-tag ${f.severity || 'medium'}">${f.severity || 'medium'}</span>
+                        <strong>${f.category || 'issue'}</strong>
+                    </div>
+                    <div>${f.issue || ''}</div>
+                    ${f.fix_applied ? `<div class="critic-fix"><em>Fix applied:</em> ${f.fix_applied}</div>` : ''}
+                </div>
+            `).join('') + `<div class="critic-approved" style="margin-top:10px;">Verdict: ${verdict.toUpperCase()}</div>`;
+        }
+
+        document.querySelectorAll('#loop-result .skill-file-tab').forEach(t => t.classList.remove('active'));
+        document.querySelector('#loop-result .skill-file-tab[data-output="human"]').classList.add('active');
+        showLoopOutput('human');
+    }
+
+    function showLoopOutput(view) {
+        if (!currentLoopSpec) return;
+        const spec = currentLoopSpec;
+
+        if (view === 'mermaid') {
+            loopOutputText.style.display = 'none';
+            loopMermaidRender.style.display = 'block';
+            renderMermaidDiagram(spec.mermaid_diagram || '');
+            return;
+        }
+
+        loopMermaidRender.style.display = 'none';
+        loopOutputText.style.display = 'block';
+
+        if (view === 'human') {
+            loopOutputText.textContent = spec.human_readable_markdown || '(no markdown generated)';
+        } else if (view === 'agent') {
+            loopOutputText.textContent = spec.agent_instructions || '(no agent instructions generated)';
+        } else if (view === 'json') {
+            loopOutputText.textContent = JSON.stringify(buildUniversalLoopSchema(spec), null, 2);
+        }
+    }
+
+    function buildUniversalLoopSchema(spec) {
+        return {
+            goal: spec.goal || '',
+            trigger: spec.trigger || {},
+            actions: spec.actions || [],
+            proof: spec.proof || [],
+            memory: spec.memory || [],
+            constraints: spec.constraints || [],
+            stop_conditions: spec.stop_conditions || [],
+            optimization_loop: spec.optimization_loop || [],
+            agent_instructions: spec.agent_instructions || ''
+        };
+    }
+
+    async function renderMermaidDiagram(code) {
+        if (!code) {
+            loopMermaidRender.innerHTML = '<p style="color:#888;">No diagram generated.</p>';
+            return;
+        }
+        try {
+            if (window.mermaid) {
+                window.mermaid.initialize({ startOnLoad: false, theme: 'neutral' });
+                const id = 'loop-mermaid-' + Date.now();
+                const { svg } = await window.mermaid.render(id, code);
+                loopMermaidRender.innerHTML = svg;
+            } else {
+                loopMermaidRender.innerHTML = `<pre style="white-space:pre-wrap;text-align:left;">${code}</pre>`;
+            }
+        } catch (err) {
+            console.error('Mermaid render error:', err);
+            loopMermaidRender.innerHTML = `<pre style="white-space:pre-wrap;text-align:left;">${code}</pre>`;
+        }
+    }
+
+    document.querySelectorAll('#loop-result .skill-file-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            document.querySelectorAll('#loop-result .skill-file-tab').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            showLoopOutput(tab.dataset.output);
+        });
+    });
+
+    if (loopCopyBtn) {
+        loopCopyBtn.addEventListener('click', () => {
+            if (!currentLoopSpec) return showToast('Compile a loop first.');
+            const activeTab = document.querySelector('#loop-result .skill-file-tab.active');
+            const view = activeTab ? activeTab.dataset.output : 'human';
+            const text = view === 'mermaid' ? (currentLoopSpec.mermaid_diagram || '') : loopOutputText.textContent;
+            navigator.clipboard.writeText(text).then(() => showToast('Copied to clipboard!'));
+        });
+    }
+
+    if (regenerateLoopBtn) {
+        regenerateLoopBtn.addEventListener('click', () => {
+            if (compileLoopBtn) compileLoopBtn.click();
+        });
+    }
+
+    if (downloadLoopJsonBtn) {
+        downloadLoopJsonBtn.addEventListener('click', () => {
+            if (!currentLoopSpec) return showToast('Compile a loop first.');
+            const schema = buildUniversalLoopSchema(currentLoopSpec);
+            const el = document.createElement('a');
+            el.href = URL.createObjectURL(new Blob([JSON.stringify(schema, null, 2)], { type: 'application/json' }));
+            el.download = 'loop-specification.json';
+            document.body.appendChild(el);
+            el.click();
+            document.body.removeChild(el);
+            showToast('JSON specification downloaded!');
+        });
+    }
+
+    if (downloadLoopMdBtn) {
+        downloadLoopMdBtn.addEventListener('click', () => {
+            if (!currentLoopSpec) return showToast('Compile a loop first.');
+            const spec = currentLoopSpec;
+            const findings = currentLoopCritique ? currentLoopCritique.findings : [];
+            let md = `# Loop Specification: ${spec.loop_type || 'Loop'}\n\n`;
+            md += `## Human Readable Loop\n\n${spec.human_readable_markdown || ''}\n\n---\n\n`;
+            md += `## Agent Instructions\n\n${spec.agent_instructions || ''}\n\n---\n\n`;
+            md += `## JSON Specification\n\n` + '```json\n' + JSON.stringify(buildUniversalLoopSchema(spec), null, 2) + '\n```\n\n---\n\n';
+            md += `## Mermaid Diagram\n\n` + '```mermaid\n' + (spec.mermaid_diagram || '') + '\n```\n\n---\n\n';
+            md += `## Loop Critic Review\n\n`;
+            if (!findings || findings.length === 0) {
+                md += `No high-impact issues found. Loop approved as compiled.\n`;
+            } else {
+                findings.forEach(f => {
+                    md += `- **[${(f.severity || 'medium').toUpperCase()}] ${f.category || 'issue'}**: ${f.issue || ''}${f.fix_applied ? ` — *Fix applied:* ${f.fix_applied}` : ''}\n`;
+                });
+            }
+            const el = document.createElement('a');
+            el.href = URL.createObjectURL(new Blob([md], { type: 'text/markdown' }));
+            el.download = 'loop-specification.md';
+            document.body.appendChild(el);
+            el.click();
+            document.body.removeChild(el);
+            showToast('Full spec downloaded!');
+        });
+    }
 });
