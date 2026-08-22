@@ -202,6 +202,33 @@
     if (label) label.textContent = text || (state === 'live' ? 'Running' : state === 'done' ? 'Complete' : 'Idle');
   }
 
+  /* Adapters onto meter.js. The meter is optional — if it failed to load the
+     generators still run, they just lose the bar. */
+
+  function meterStart(tabId, steps, skipKey) {
+    if (!window.RunMeter) return;
+    /* A skipped stage still needs a slot so the bar's arithmetic holds, but it
+       carries almost no weight. */
+    const stages = steps.map(s => ({
+      key: s.key,
+      label: s.label,
+      weight: s.key === skipKey ? 0.05 : (s.weight || 1)
+    }));
+    window.RunMeter.start(tabId, stages);
+  }
+
+  function meterStage(tabId, key) {
+    if (window.RunMeter) window.RunMeter.stage(tabId, key);
+  }
+
+  function meterDone(tabId, key) {
+    if (window.RunMeter) window.RunMeter.stageDone(tabId, key);
+  }
+
+  function meterFinish(tabId, ok) {
+    if (window.RunMeter) window.RunMeter.finish(tabId, ok);
+  }
+
   function hideEmpty(tabId) {
     const el = $(`.stage-empty[data-empty-for="${tabId}"]`);
     if (el) el.style.display = 'none';
@@ -335,12 +362,14 @@
      CONTENT LOOP
      ══════════════════════════════════════════════════════════════════════ */
 
+  /* Weights approximate how long each stage actually takes, so the bar moves
+     at a roughly even rate instead of jumping a fifth per step. */
   const CL_STEPS = [
-    { key: 'strategy', label: 'Compile content strategy' },
-    { key: 'calendar', label: 'Lay out the cycle calendar' },
-    { key: 'drafts',   label: 'Write channel-native drafts' },
-    { key: 'visuals',  label: 'Generate key visuals' },
-    { key: 'assemble', label: 'Assemble automation spec' }
+    { key: 'strategy', label: 'Compile content strategy',  weight: 1.2 },
+    { key: 'calendar', label: 'Lay out the cycle calendar', weight: 1 },
+    { key: 'drafts',   label: 'Write channel-native drafts', weight: 2.2 },
+    { key: 'visuals',  label: 'Generate key visuals',       weight: 1.6 },
+    { key: 'assemble', label: 'Assemble automation spec',   weight: 0.2 }
   ];
 
   const CL_STRATEGIST = `You are a Content Loop Architect. You do not write one-off posts — you design a repeatable content ENGINE that a human or an autonomous agent can run every cycle, forever, and that gets measurably better each turn.
@@ -611,38 +640,47 @@ Respond with ONLY a JSON array, no prose and no code fences:
     $('#cl-result').style.display = 'none';
     $('#cl-metrics-panel').style.display = 'none';
     clPipeline.reset();
+    meterStart('content-loop', CL_STEPS, inputs.visuals ? null : 'visuals');
     clState = { inputs: inputs, visuals: [] };
 
     try {
       /* 1 — strategy */
       clPipeline.set('strategy', 'active');
+      meterStage('content-loop', 'strategy');
       clState.strategy = await chatJson(inputs.model, CL_STRATEGIST,
         `SUBJECT\n${inputs.topic}\n\nAUDIENCE\n${inputs.audience}\n\nCHANNELS\n${inputs.channels.join(', ')}\n\nCADENCE\n${inputs.cadence}, ${inputs.count} pieces per cycle\n\nVOICE\n${inputs.tone}\n\nDesign the content engine.`);
       clPipeline.set('strategy', 'done', (clState.strategy.pillars || []).length + ' pillars');
+      meterDone('content-loop', 'strategy');
 
       renderClMetrics();
 
       /* 2 — calendar */
       clPipeline.set('calendar', 'active');
+      meterStage('content-loop', 'calendar');
       const cal = await chatJson(inputs.model, CL_CALENDAR,
         `STRATEGY\n${JSON.stringify(clState.strategy)}\n\nCHANNELS\n${inputs.channels.join(', ')}\n\nCADENCE\n${inputs.cadence}\n\nProduce exactly ${inputs.count} calendar items for one full cycle.`);
       clState.calendar = Array.isArray(cal) ? cal.slice(0, inputs.count) : (cal.calendar || []);
       clPipeline.set('calendar', 'done', clState.calendar.length + ' slots');
+      meterDone('content-loop', 'calendar');
 
       /* 3 — drafts */
       clPipeline.set('drafts', 'active');
+      meterStage('content-loop', 'drafts');
       const drafts = await chatJson(inputs.model, CL_DRAFTS,
         `VOICE\n${inputs.tone}\n\nAUDIENCE\n${clState.strategy.audience || inputs.audience}\n\nSLOTS\n${JSON.stringify(clState.calendar)}\n\nWrite one finished draft per slot, in the same order.`,
         { max_tokens: 6000 });
       clState.drafts = Array.isArray(drafts) ? drafts : (drafts.drafts || []);
       clPipeline.set('drafts', 'done', clState.drafts.length + ' drafts');
+      meterDone('content-loop', 'drafts');
 
       /* 4 — visuals */
       if (inputs.visuals) {
         clPipeline.set('visuals', 'active');
+        meterStage('content-loop', 'visuals');
         const targets = clState.calendar.filter(i => i.image_prompt).slice(0, 4);
         if (!targets.length) {
           clPipeline.set('visuals', 'done', 'none requested');
+          meterDone('content-loop', 'visuals');
         } else {
           clState.visuals = targets.map(t => ({ slot: t.slot, prompt: t.image_prompt }));
           let made = 0;
@@ -658,25 +696,31 @@ Respond with ONLY a JSON array, no prose and no code fences:
             if ($('.out-tab.active[data-cl-out="visuals"]')) clRender('visuals');
           }
           clPipeline.set('visuals', made ? 'done' : 'failed', made + ' of ' + clState.visuals.length);
+          meterDone('content-loop', 'visuals');
         }
       } else {
         clPipeline.set('visuals', 'done', 'skipped');
+        meterDone('content-loop', 'visuals');
       }
 
       /* 5 — assemble */
       clPipeline.set('assemble', 'active');
+      meterStage('content-loop', 'assemble');
       renderClMetrics();
       $('#cl-result').style.display = 'block';
       clRender(activeClView());
       clPipeline.set('assemble', 'done', 'ready');
+      meterDone('content-loop', 'assemble');
 
       pulse('content-loop', 'done', 'Complete');
+      meterFinish('content-loop', true);
       toast('Content loop compiled.');
     } catch (err) {
       console.error('[content-loop]', err);
       const active = $('#cl-pipeline .pipeline-step.is-active');
       if (active) clPipeline.set(active.dataset.step, 'failed', 'Failed');
       pulse('content-loop', null, 'Failed');
+      meterFinish('content-loop', false);
       toast('Content loop failed: ' + err.message);
     } finally {
       btn.disabled = false;
@@ -709,9 +753,9 @@ Respond with ONLY a JSON array, no prose and no code fences:
      ══════════════════════════════════════════════════════════════════════ */
 
   const GL_STEPS = [
-    { key: 'forge',    label: 'Forge the gauntlet spec' },
-    { key: 'harden',   label: 'Adversarial critic pass' },
-    { key: 'assemble', label: 'Assemble the runnable prompt' }
+    { key: 'forge',    label: 'Forge the gauntlet spec',     weight: 1.6 },
+    { key: 'harden',   label: 'Adversarial critic pass',     weight: 1.6 },
+    { key: 'assemble', label: 'Assemble the runnable prompt', weight: 0.2 }
   ];
 
   const GL_FORGE = `You are a Gauntlet Architect. A GAUNTLET is a quality loop that refuses to accept "good enough": work is fanned out to parallel specialist sub-agents, then judged by an adversarial critic against a named gold standard, and the loop only exits when the critic — who is trying to fail it — cannot.
@@ -1031,6 +1075,7 @@ Respond with ONLY this JSON object, no prose and no code fences:
     $('#gl-result').style.display = 'none';
     $('#gl-versus-panel').style.display = 'none';
     glPipeline.reset();
+    meterStart('gauntlet-loop', GL_STEPS);
     glState = { inputs: inputs };
 
     const brief =
@@ -1047,10 +1092,13 @@ Respond with ONLY this JSON object, no prose and no code fences:
 
     try {
       glPipeline.set('forge', 'active');
+      meterStage('gauntlet-loop', 'forge');
       const forged = await chatJson(inputs.model, GL_FORGE, brief, { max_tokens: 6000 });
       glPipeline.set('forge', 'done', (forged.agents || []).length + ' agents');
+      meterDone('gauntlet-loop', 'forge');
 
       glPipeline.set('harden', 'active');
+      meterStage('gauntlet-loop', 'harden');
       let critique = { verdict: 'approved', findings: [] };
       let spec = forged;
       try {
@@ -1060,11 +1108,13 @@ Respond with ONLY this JSON object, no prose and no code fences:
         critique = { verdict: reviewed.verdict || 'revised', findings: reviewed.findings || [] };
         if (reviewed.final_spec && reviewed.final_spec.agents) spec = reviewed.final_spec;
         glPipeline.set('harden', 'done', critique.findings.length + ' findings');
+        meterDone('gauntlet-loop', 'harden');
       } catch (err) {
         /* The critic is a hardening pass, not a hard dependency — keep the
            forged spec and say plainly that the pass did not land. */
         console.warn('[gauntlet] critic pass failed:', err);
         glPipeline.set('harden', 'failed', 'skipped');
+        meterDone('gauntlet-loop', 'harden');
         toast('Critic pass failed — showing the unhardened spec.');
       }
 
@@ -1072,19 +1122,23 @@ Respond with ONLY this JSON object, no prose and no code fences:
       glState.critique = critique;
 
       glPipeline.set('assemble', 'active');
+      meterStage('gauntlet-loop', 'assemble');
       glState.prompt = glBuildPrompt(spec, inputs);
       renderGlMatchup();
       $('#gl-result').style.display = 'block';
       glRender(activeGlView());
       glPipeline.set('assemble', 'done', 'ready');
+      meterDone('gauntlet-loop', 'assemble');
 
       pulse('gauntlet-loop', 'done', 'Complete');
+      meterFinish('gauntlet-loop', true);
       toast('Gauntlet forged.');
     } catch (err) {
       console.error('[gauntlet-loop]', err);
       const active = $('#gl-pipeline .pipeline-step.is-active');
       if (active) glPipeline.set(active.dataset.step, 'failed', 'Failed');
       pulse('gauntlet-loop', null, 'Failed');
+      meterFinish('gauntlet-loop', false);
       toast('Gauntlet failed: ' + err.message);
     } finally {
       btn.disabled = false;
