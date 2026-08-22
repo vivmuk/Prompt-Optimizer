@@ -60,6 +60,34 @@ Site settings → Environment variables. Note that the `/api/*` proxy routes are
 served by `server.js`; a static Netlify deploy needs equivalent functions for
 chat, models and image generation.
 
+## Progress and cost
+
+Every generator carries a run meter under its orchestration header.
+
+**Progress** is determinate, not decorative. Each generator declares weighted
+stages — weights approximate real duration, so the bar moves at an even rate
+instead of jumping a fifth per step. Within a stage the bar eases toward that
+stage's ceiling but never reaches it until the stage actually reports done, so
+the bar can only ever be ahead of reality by less than one stage, and never
+sticks at 100%. The tabs `app.js` owns are bound to the percentage they already
+emit, and their own status lines drive the bar's label.
+
+**Cost** comes from Venice's published per-model pricing on `/models`:
+
+- Before a run, the meter shows an estimate for the selected model, based on a
+  measured token profile for that generator. It updates when you change model,
+  and Content Loop folds in image cost when visuals are switched on.
+- During and after a run, the estimate is replaced by the real figure. `meter.js`
+  instruments `fetch`, reads the `usage` block off every completion, and prices
+  it — which is how cost works on the older tabs without modifying them.
+- Clicking the cost chip opens a per-call breakdown: model, tokens in and out,
+  cached tokens, latency, and USD per call.
+
+Text is priced per million tokens from `input.usd` / `output.usd`, honouring the
+`extended` tier above its context threshold and the cached-input rate where the
+response reports one. Images use `generation.usd` or the per-resolution tier.
+Models Venice publishes no rate for are marked unpriced rather than guessed at.
+
 ## API surface
 
 `server.js` proxies Venice so the API key never reaches the browser.
@@ -96,6 +124,7 @@ editing that one block.
 index.html        App shell: left rail, control panels, orchestration columns
 styles.css        Design tokens, shell, and every shared component
 generators.css    Components specific to Content Loop and Gauntlet Loop
+meter.js          Run progress bar, live cost metering, fetch instrumentation
 app.js            Optimizer, Agent Builder, Skills, Plugin Builder, Loop Design
 generators.js     Content Loop, Gauntlet Loop, and shared orchestration plumbing
 server.js         Express server and the Venice proxy routes
