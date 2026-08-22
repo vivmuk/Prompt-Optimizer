@@ -98,7 +98,45 @@ app.get('/api/models', async (req, res) => {
     }
 });
 
-// 4. Generate Skill Package (.skill ZIP file)
+// 4. Image Generation Proxy (Venice /image/generate)
+app.post('/api/image', async (req, res) => {
+    try {
+        const apiKey = getVeniceKey();
+        if (!apiKey) {
+            return res.status(500).json({ error: 'Configuration Error: VENICE_API_KEY missing on server.' });
+        }
+
+        const { model, prompt } = req.body || {};
+        if (!model || !prompt) {
+            return res.status(400).json({ error: 'Both "model" and "prompt" are required.' });
+        }
+
+        console.log(`[SERVER] Proxying Image Request to Venice (${model})...`);
+
+        const response = await fetch('https://api.venice.ai/api/v1/image/generate', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
+            },
+            body: JSON.stringify(req.body)
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            console.error('[SERVER] Venice Image Error:', response.status, data);
+            return res.status(response.status).json(data);
+        }
+
+        res.json(data);
+    } catch (error) {
+        console.error('[SERVER] Image Exception:', error);
+        res.status(500).json({ error: 'Failed to generate image' });
+    }
+});
+
+// 5. Generate Skill Package (.skill ZIP file)
 app.post('/api/skill-package', async (req, res) => {
     try {
         const { name, description, skillType, skillMd, scripts, references, assets } = req.body;
