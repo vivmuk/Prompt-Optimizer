@@ -308,6 +308,7 @@
     }
     fillModels($('#cl-model'), models, 'zai-org-glm-4.7');
     fillModels($('#gl-model'), models, 'deepseek-r1-671b-thinking');
+    fillModels($('#ar-model'), models, 'zai-org-glm-4.7');
   }
 
   /* ── Generic control wiring: chips, segmented, ranges ───────────────── */
@@ -1153,6 +1154,328 @@ Respond with ONLY this JSON object, no prose and no code fences:
   }
 
   /* ══════════════════════════════════════════════════════════════════════
+     AGENT RULES
+
+     AGENTS.md is the open standard and is read natively by Codex CLI,
+     Cursor, Copilot, Gemini CLI, Aider, Windsurf and Zed. Everything else
+     here is a harness-native variant derived from the same source, so the
+     repo cannot end up with two sets of rules that disagree.
+     ══════════════════════════════════════════════════════════════════════ */
+
+  const AR_STEPS = [
+    { key: 'analyse', label: 'Read the project brief',   weight: 1 },
+    { key: 'author',  label: 'Author the AGENTS.md',     weight: 1.8 },
+    { key: 'derive',  label: 'Derive harness variants',  weight: 0.3 }
+  ];
+
+  /* path      — where the file belongs in the repo
+     reads     — true when the harness already reads AGENTS.md unmodified
+     transform — builds the file body from the spec and the canonical body */
+  const HARNESSES = {
+    agents: {
+      name: 'AGENTS.md',
+      tool: 'Open standard',
+      path: 'AGENTS.md',
+      note: 'Repo root. Codex CLI, Cursor, Copilot, Gemini CLI, Aider, Windsurf and Zed all read this natively. A deeper AGENTS.md in a subdirectory overrides the one above it.',
+      transform: (spec, body) => body
+    },
+    claude: {
+      name: 'CLAUDE.md',
+      tool: 'Claude Code',
+      path: 'CLAUDE.md',
+      note: 'Repo root. Claude Code layers three files: ~/.claude/CLAUDE.md for personal defaults, ./CLAUDE.md committed for the team, and ./CLAUDE.local.md gitignored for your own overrides.',
+      transform: (spec, body) => body + claudeAddendum(spec)
+    },
+    cursor: {
+      name: 'project-rules.mdc',
+      tool: 'Cursor',
+      path: '.cursor/rules/project-rules.mdc',
+      note: 'Project rules live in .cursor/rules/ and must use the .mdc extension. alwaysApply:true keeps the stack and layout in context; add sibling files with narrower globs for area-specific rules.',
+      transform: (spec, body) => cursorFrontmatter(spec) + body
+    },
+    copilot: {
+      name: 'copilot-instructions.md',
+      tool: 'GitHub Copilot',
+      path: '.github/copilot-instructions.md',
+      note: 'Copilot reads this from .github/ across the editor and the coding agent.',
+      transform: (spec, body) => body
+    },
+    gemini: {
+      name: 'GEMINI.md',
+      tool: 'Gemini CLI',
+      path: 'GEMINI.md',
+      note: 'Repo root. Gemini CLI reads AGENTS.md too — add this only if you want Gemini-specific guidance that the other harnesses should not see.',
+      transform: (spec, body) => body
+    },
+    windsurf: {
+      name: 'project-rules.md',
+      tool: 'Windsurf',
+      path: '.windsurf/rules/project-rules.md',
+      note: 'Windsurf reads rule files from .windsurf/rules/.',
+      transform: (spec, body) => body
+    },
+    aider: {
+      name: 'CONVENTIONS.md',
+      tool: 'Aider',
+      path: 'CONVENTIONS.md',
+      note: 'Repo root. Load it with `aider --read CONVENTIONS.md`, or add it to .aider.conf.yml so every session picks it up.',
+      transform: (spec, body) => body
+    }
+  };
+
+  function cursorFrontmatter(spec) {
+    return [
+      '---',
+      `description: ${(spec.summary || 'Project-wide conventions and commands.').replace(/\n/g, ' ')}`,
+      'globs:',
+      'alwaysApply: true',
+      '---',
+      '',
+      ''
+    ].join('\n');
+  }
+
+  function claudeAddendum(spec) {
+    const lines = ['', '', '## Memory layering', '',
+      'This file is the team-wide layer. Personal preferences belong in',
+      '`~/.claude/CLAUDE.md`; machine-specific overrides belong in',
+      '`./CLAUDE.local.md`, which should stay gitignored.'];
+    if (spec.directory_notes && spec.directory_notes.length) {
+      lines.push('', '## Directory notes', '');
+      spec.directory_notes.forEach(d => lines.push(`- \`${d.path}\` — ${d.note}`));
+    }
+    return lines.join('\n');
+  }
+
+  const AR_ANALYST = `You are a Repository Rules Analyst. You read a project brief and turn it into the structured facts a coding agent needs before it is allowed to change anything.
+
+What separates a rules file that works from one that gets ignored:
+- EXACT COMMANDS. "Run the tests" is useless. "pnpm test --run" is not. Never invent a command that was not given to you; if a command is missing, leave it out rather than guessing at a script name.
+- GUARDRAILS THAT NAME PATHS. "Be careful with payments" is decoration. "Never edit db/migrations by hand — generate them with pnpm db:migrate" is enforceable.
+- NON-OBVIOUS ONLY. The agent already knows how TypeScript works. It does not know that your /v1 routes are frozen.
+- NO INVENTED FACTS. If the brief does not say what the CI does, say nothing about CI.
+
+Respond with ONLY this JSON object, no prose and no code fences:
+{
+  "project": "the repo name",
+  "summary": "one sentence an agent could read to know what this codebase is",
+  "stack": [""],
+  "commands": [{"label":"setup|build|test|lint|run|other", "command":"", "when":"when an agent should run it"}],
+  "conventions": [{"rule":"", "why":""}],
+  "guardrails": [{"rule":"", "scope":"the path or area it applies to"}],
+  "architecture_notes": ["things about the layout that are not obvious from the file tree"],
+  "directory_notes": [{"path":"", "note":""}],
+  "pr_rules": ["what must be true before a change is proposed"],
+  "open_questions": ["anything the brief left ambiguous that a human should fill in"]
+}`;
+
+  const AR_AUTHOR = `You are writing the AGENTS.md for a repository — the file every coding agent reads before touching the code.
+
+Format rules:
+- Plain Markdown. No YAML frontmatter, no HTML.
+- Open with an H1 naming the project, then one or two sentences on what it is.
+- Use these H2 sections, and omit any section you have no real content for: Setup, Commands, Architecture, Conventions, Guardrails, Pull requests.
+- Put commands in fenced bash blocks, one command per line, exactly as given.
+- Write in the imperative, addressed to the agent. "Run", "Never", "Prefer".
+- Be short. A rules file nobody reads to the end is a rules file that does not work. Aim well under 150 lines.
+- Include nothing that was not in the spec. No invented commands, no invented CI, no filler like "write clean code".
+
+Return ONLY the Markdown file content — no commentary, no code fence around the whole thing.`;
+
+  let arState = null;
+  let arPipeline = null;
+
+  function arSelectedHarnesses() {
+    const picked = chipValues('ar-harnesses', 'harness');
+    /* AGENTS.md is the source every variant is derived from, so it is always
+       generated even when the user only asked for a native format. */
+    return picked.indexOf('agents') === -1 ? ['agents'].concat(picked) : picked;
+  }
+
+  function arRenderTabs() {
+    const strip = $('#ar-out-tabs');
+    const copyBtn = $('#ar-copy-btn');
+    if (!strip || !arState) return;
+    const keys = arState.harnesses;
+    strip.innerHTML = keys.map((k, i) =>
+      `<button class="out-tab${i === 0 ? ' active' : ''}" data-ar-out="${k}">${esc(HARNESSES[k].name)}</button>`
+    ).join('') + `<button class="out-tab" data-ar-out="install">Install</button>` +
+      `<button class="out-tab" data-ar-out="json">JSON</button>`;
+    strip.appendChild(copyBtn);
+
+    $$('.out-tab[data-ar-out]', strip).forEach(tab => {
+      tab.addEventListener('click', () => {
+        $$('.out-tab[data-ar-out]', strip).forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        arRender(tab.dataset.arOut);
+      });
+    });
+  }
+
+  function activeArView() {
+    const t = $('.out-tab.active[data-ar-out]');
+    return t ? t.dataset.arOut : (arState ? arState.harnesses[0] : 'agents');
+  }
+
+  function arRender(view) {
+    const out = $('#ar-output');
+    if (!out || !arState) return;
+
+    if (view === 'json') {
+      out.innerHTML = `<pre class="output-pre" style="padding:0;">${esc(JSON.stringify(arExport(), null, 2))}</pre>`;
+      return;
+    }
+
+    if (view === 'install') {
+      out.innerHTML = '<div class="protocol">' + arState.harnesses.map(k => {
+        const h = HARNESSES[k];
+        return `<div class="protocol-step"><strong>${esc(h.tool)}</strong> — write to <code>${esc(h.path)}</code><br>${esc(h.note)}</div>`;
+      }).join('') + '</div>' +
+      `<div class="prose" style="margin-top:20px;"><h4>Keeping them in sync</h4><p>Every file here is derived from the same spec. When the project changes, regenerate rather than hand-editing one file — two rules files that disagree are worse than one that is slightly out of date.</p></div>`;
+      return;
+    }
+
+    const file = arState.files[view];
+    if (!file) { out.innerHTML = '<p class="prose">Nothing generated for that harness.</p>'; return; }
+    out.innerHTML =
+      `<div class="calendar-meta" style="margin-bottom:16px;"><span class="tag format">${esc(HARNESSES[view].path)}</span><span class="tag">${esc(HARNESSES[view].tool)}</span></div>` +
+      `<pre class="output-pre" style="padding:0;">${esc(file)}</pre>`;
+  }
+
+  function arExport() {
+    if (!arState) return {};
+    return {
+      generated_at: new Date().toISOString(),
+      inputs: arState.inputs,
+      spec: arState.spec,
+      files: arState.harnesses.map(k => ({
+        harness: HARNESSES[k].tool,
+        path: HARNESSES[k].path,
+        content: arState.files[k]
+      }))
+    };
+  }
+
+  /* One download carrying every file, each under its real repo path. */
+  function arBundle() {
+    let md = `# Agent rules for ${arState.spec.project || arState.inputs.name}\n\n`;
+    md += `Generated ${new Date().toISOString().split('T')[0]}. Write each block to the path in its heading.\n\n`;
+    arState.harnesses.forEach(k => {
+      const h = HARNESSES[k];
+      md += `---\n\n## ${h.path}\n\n_${h.tool} — ${h.note}_\n\n`;
+      md += '````markdown\n' + arState.files[k] + '\n````\n\n';
+    });
+    if (arState.spec.open_questions && arState.spec.open_questions.length) {
+      md += `---\n\n## Left for a human\n\n`;
+      arState.spec.open_questions.forEach(q => { md += `- ${q}\n`; });
+    }
+    return md;
+  }
+
+  function arRenderSummary() {
+    const spec = arState.spec || {};
+    const panel = $('#ar-summary-panel');
+    if (!panel) return;
+    panel.style.display = 'block';
+    $('#ar-metrics').innerHTML = `
+      <div class="metric"><div class="metric-value accent">${(spec.commands || []).length}</div><div class="metric-label">Commands</div></div>
+      <div class="metric"><div class="metric-value">${(spec.conventions || []).length}</div><div class="metric-label">Conventions</div></div>
+      <div class="metric"><div class="metric-value">${(spec.guardrails || []).length}</div><div class="metric-label">Guardrails</div></div>
+      <div class="metric"><div class="metric-value jade">${arState.harnesses.length}</div><div class="metric-label">Files</div></div>`;
+
+    let h = `<h4>${esc(spec.project || arState.inputs.name)}</h4><p>${esc(spec.summary || '')}</p>`;
+    if (spec.open_questions && spec.open_questions.length) {
+      h += `<h4>Left for a human</h4><ul>` +
+        spec.open_questions.map(q => `<li>${esc(q)}</li>`).join('') + `</ul>`;
+    }
+    $('#ar-summary').innerHTML = h;
+  }
+
+  async function runAgentRules() {
+    const description = ($('#ar-description').value || '').trim();
+    if (!description) { toast('Describe the project first.'); $('#ar-description').focus(); return; }
+
+    const inputs = {
+      name: ($('#ar-name').value || '').trim() || 'this repository',
+      description: description,
+      stack: ($('#ar-stack').value || '').trim(),
+      commands: ($('#ar-commands').value || '').trim(),
+      conventions: ($('#ar-conventions').value || '').trim(),
+      harnesses: arSelectedHarnesses(),
+      model: $('#ar-model').value
+    };
+
+    const btn = $('#ar-run-btn');
+    const status = $('#ar-inline-status');
+    btn.disabled = true;
+    status.style.display = '';
+    status.classList.add('running');
+    $('#ar-progress').textContent = 'Running';
+    hideEmpty('agent-rules');
+    pulse('agent-rules', 'live', 'Running');
+
+    $('#ar-run').style.display = 'block';
+    $('#ar-result').style.display = 'none';
+    $('#ar-summary-panel').style.display = 'none';
+    arPipeline.reset();
+    meterStart('agent-rules', AR_STEPS);
+    arState = { inputs: inputs, harnesses: inputs.harnesses, files: {} };
+
+    const brief =
+      `PROJECT\n${inputs.name}\n\n` +
+      `BRIEF\n${inputs.description}\n\n` +
+      (inputs.stack ? `STACK\n${inputs.stack}\n\n` : '') +
+      (inputs.commands ? `COMMANDS GIVEN (use these verbatim, invent none)\n${inputs.commands}\n\n` : 'COMMANDS GIVEN\nnone — omit the Commands section entirely\n\n') +
+      (inputs.conventions ? `HOUSE RULES\n${inputs.conventions}\n\n` : '') +
+      `Extract the spec.`;
+
+    try {
+      arPipeline.set('analyse', 'active');
+      meterStage('agent-rules', 'analyse');
+      arState.spec = await chatJson(inputs.model, AR_ANALYST, brief, { max_tokens: 4000, temperature: 0.4 });
+      arPipeline.set('analyse', 'done', (arState.spec.commands || []).length + ' commands');
+      meterDone('agent-rules', 'analyse');
+      arRenderSummary();
+
+      arPipeline.set('author', 'active');
+      meterStage('agent-rules', 'author');
+      let body = await chat(inputs.model, AR_AUTHOR,
+        `SPEC\n${JSON.stringify(arState.spec)}\n\nWrite the AGENTS.md.`,
+        { max_tokens: 4000, temperature: 0.5 });
+      /* Models like to wrap a whole document in a fence despite being asked not to. */
+      body = body.replace(/^\s*```(?:markdown|md)?\s*\n/i, '').replace(/\n```\s*$/i, '').trim();
+      arPipeline.set('author', 'done', body.split('\n').length + ' lines');
+      meterDone('agent-rules', 'author');
+
+      arPipeline.set('derive', 'active');
+      meterStage('agent-rules', 'derive');
+      arState.harnesses.forEach(k => {
+        arState.files[k] = HARNESSES[k].transform(arState.spec, body);
+      });
+      arRenderTabs();
+      $('#ar-result').style.display = 'block';
+      arRender(arState.harnesses[0]);
+      arPipeline.set('derive', 'done', arState.harnesses.length + ' files');
+      meterDone('agent-rules', 'derive');
+
+      pulse('agent-rules', 'done', 'Complete');
+      meterFinish('agent-rules', true);
+      toast('Agent rules written.');
+    } catch (err) {
+      console.error('[agent-rules]', err);
+      const active = $('#ar-pipeline .pipeline-step.is-active');
+      if (active) arPipeline.set(active.dataset.step, 'failed', 'Failed');
+      pulse('agent-rules', null, 'Failed');
+      meterFinish('agent-rules', false);
+      toast('Agent rules failed: ' + err.message);
+    } finally {
+      btn.disabled = false;
+      status.classList.remove('running');
+      status.style.display = 'none';
+    }
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════
      BOOT
      ══════════════════════════════════════════════════════════════════════ */
 
@@ -1191,6 +1514,33 @@ Respond with ONLY this JSON object, no prose and no code fences:
       if (!clState) return toast('Compile a content loop first.');
       download(slug((clState.strategy || {}).engine_name, 'content-loop') + '.json',
         JSON.stringify(clExport(), null, 2), 'application/json');
+      toast('JSON downloaded.');
+    });
+
+    /* Agent Rules */
+    arPipeline = new Pipeline('ar-pipeline', AR_STEPS);
+    wireChips('ar-harnesses', true);
+    $('#ar-run-btn').addEventListener('click', runAgentRules);
+    $('#ar-regenerate').addEventListener('click', runAgentRules);
+
+    $('#ar-copy-btn').addEventListener('click', function () {
+      if (!arState) return toast('Write the rules first.');
+      const view = activeArView();
+      if (view === 'json') return copyText(JSON.stringify(arExport(), null, 2), this);
+      if (view === 'install') return copyText(arBundle(), this);
+      copyText(arState.files[view] || '', this);
+    });
+
+    $('#ar-download-bundle').addEventListener('click', () => {
+      if (!arState) return toast('Write the rules first.');
+      download(slug((arState.spec || {}).project, 'agent-rules') + '-rules.md', arBundle(), 'text/markdown');
+      toast('Rule files downloaded.');
+    });
+
+    $('#ar-download-json').addEventListener('click', () => {
+      if (!arState) return toast('Write the rules first.');
+      download(slug((arState.spec || {}).project, 'agent-rules') + '-rules.json',
+        JSON.stringify(arExport(), null, 2), 'application/json');
       toast('JSON downloaded.');
     });
 

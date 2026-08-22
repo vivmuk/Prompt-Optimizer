@@ -11,11 +11,37 @@ left, and watch the run assemble in the orchestration column on the right.
 | --- | --- |
 | **Optimizer** | A rough draft becomes an engineered prompt, shaped for a specific provider dialect (Claude XML, Gemini PTCF, OpenAI Markdown, or universal). Answer it in place or hand it to another chatbot. |
 | **Agent Builder** | Name, description, system instructions and conversation starters for a custom agent. |
-| **Skills** | A complete Anthropic `.skill` package — SKILL.md, scripts, reference docs, folder tree — downloadable as a `.skill` archive. |
+| **Skills** | A portable `SKILL.md` package — SKILL.md, scripts, reference docs, folder tree — downloadable as a `.skill` archive. The Agent Skills standard is no longer Claude-only: Claude Code, Codex CLI, Cursor and Gemini CLI load the same folder. |
+| **Agent Rules** | The file every coding agent reads before touching a repo. Emits the AGENTS.md open standard plus any harness-native variant you ask for — CLAUDE.md, `.cursor/rules/*.mdc`, `.github/copilot-instructions.md`, GEMINI.md, `.windsurf/rules/`, CONVENTIONS.md — all derived from one spec. |
 | **Plugin Builder** | A Claude Code plugin design: commands, agents, skills, hooks and MCP servers, exported as build instructions any AI can scaffold from. |
 | **Loop Design** | A Loop Engineering spec — trigger, actions, proof, memory, stop conditions — pressure-tested by a second-pass Loop Critic. Exports as markdown, JSON or a Mermaid diagram. |
 | **Content Loop** | A repeatable content *engine*: pillars, a dated cycle calendar, channel-native drafts, Venice-generated key visuals, and the feedback loop that makes cycle two better than cycle one. |
 | **Gauntlet Loop** | A tool-creation gauntlet: parallel sub-agents that each own one dimension, an adversarial critic scoring against a named gold standard, a blind side-by-side comparison protocol, and a loop that will not exit until the critic picks your build. Outputs a runnable mega-prompt. |
+
+## Agent Rules
+
+AGENTS.md is the open standard, read natively by Codex CLI, Cursor, Copilot,
+Gemini CLI, Aider, Windsurf and Zed. This generator writes it, then derives the
+harness-native formats from the same spec so a repo can't end up with two sets
+of rules that disagree.
+
+It runs in three stages: extract a structured spec from your brief, author the
+canonical AGENTS.md, then derive each variant. The derivation is deterministic —
+only the differences that are genuinely structural get applied:
+
+| Harness | Path | What differs |
+| --- | --- | --- |
+| Open standard | `AGENTS.md` | The canonical file. |
+| Claude Code | `CLAUDE.md` | Adds a note on the three-layer memory model and per-directory notes. |
+| Cursor | `.cursor/rules/project-rules.mdc` | Adds `.mdc` frontmatter — `description`, `globs`, `alwaysApply: true`. |
+| GitHub Copilot | `.github/copilot-instructions.md` | Same body, Copilot's path. |
+| Gemini CLI | `GEMINI.md` | Same body, for Gemini-specific guidance. |
+| Windsurf | `.windsurf/rules/project-rules.md` | Same body, Windsurf's rules directory. |
+| Aider | `CONVENTIONS.md` | Same body; load with `aider --read CONVENTIONS.md`. |
+
+The analyst prompt refuses to invent commands. If your brief doesn't name a test
+command, the Commands section omits it rather than guessing at a script name,
+and the gap is listed under **Left for a human**.
 
 ## Content Loop
 
