@@ -130,6 +130,7 @@
     'agent-builder':    { calls: 1, inTok: 700,  outTok: 1400 },
     'anthropic-skills': { calls: 2, inTok: 2400, outTok: 4200 },
     'agent-rules':      { calls: 2, inTok: 3000, outTok: 2600 },
+    'harness-builder':  { calls: 2, inTok: 4200, outTok: 11000 },
     'plugin-builder':   { calls: 5, inTok: 4000, outTok: 4500 },
     'loop-design':      { calls: 2, inTok: 4200, outTok: 5000 },
     'content-loop':     { calls: 3, inTok: 5200, outTok: 7000 },
@@ -148,7 +149,8 @@
     'loop-design':      '#loop-model-select',
     'content-loop':     '#cl-model',
     'gauntlet-loop':    '#gl-model',
-    'agent-rules':      '#ar-model'
+    'agent-rules':      '#ar-model',
+    'harness-builder':  '#hb-model'
   };
 
   /* ── Cost ledger ────────────────────────────────────────────────────────
@@ -541,6 +543,15 @@
     let est = priceText(model, profile.inTok, profile.outTok);
     if (est == null) return null;
 
+    if (tabId === 'harness-builder') {
+      const on = $('#hb-image');
+      const imgModel = $('#hb-image-model');
+      if (on && on.checked && imgModel) {
+        const img = priceImage(imgModel.value, 1, '1K');
+        if (img != null) est += img;
+      }
+    }
+
     /* Content Loop also spends on images when visuals are switched on. */
     if (tabId === 'content-loop') {
       const on = $('#cl-visuals');
@@ -575,7 +586,7 @@
       new MutationObserver(refreshAllEstimates).observe(el, { childList: true });
     });
 
-    ['#cl-visuals', '#cl-image-model'].forEach(sel => {
+    ['#cl-visuals', '#cl-image-model', '#hb-image', '#hb-image-model'].forEach(sel => {
       const el = $(sel);
       if (el) el.addEventListener('change', refreshAllEstimates);
     });

@@ -46,7 +46,8 @@ app.post('/api/chat', async (req, res) => {
             return res.status(500).json({ error: 'Configuration Error: VENICE_API_KEY missing on server.' });
         }
 
-        console.log(`[SERVER] Proxying Chat Request to Venice...`);
+        const wantsStream = req.body && req.body.stream === true;
+        console.log(`[SERVER] Proxying Chat Request to Venice${wantsStream ? ' (stream)' : ''}...`);
 
         const response = await fetch('https://api.venice.ai/api/v1/chat/completions', {
             method: 'POST',
@@ -57,13 +58,41 @@ app.post('/api/chat', async (req, res) => {
             body: JSON.stringify(req.body)
         });
 
-        const data = await response.json();
-
+        // A failed stream still comes back as JSON, so read the error either way.
         if (!response.ok) {
-            console.error('[SERVER] Venice API Error:', response.status, data);
-            return res.status(response.status).json(data);
+            const errBody = await response.json().catch(() => ({ error: 'Venice request failed' }));
+            console.error('[SERVER] Venice API Error:', response.status, errBody);
+            return res.status(response.status).json(errBody);
         }
 
+        if (wantsStream) {
+            // Pipe Venice's server-sent events straight through so the browser
+            // can render fields as they arrive.
+            res.setHeader('Content-Type', 'text/event-stream');
+            res.setHeader('Cache-Control', 'no-cache, no-transform');
+            res.setHeader('Connection', 'keep-alive');
+            res.setHeader('X-Accel-Buffering', 'no');
+            if (typeof res.flushHeaders === 'function') res.flushHeaders();
+
+            const reader = response.body.getReader();
+            // A client that navigates away should stop the upstream read too.
+            let closed = false;
+            req.on('close', () => { closed = true; reader.cancel().catch(() => {}); });
+
+            try {
+                for (;;) {
+                    const { done, value } = await reader.read();
+                    if (done || closed) break;
+                    res.write(Buffer.from(value));
+                }
+            } catch (streamErr) {
+                console.error('[SERVER] Stream Error:', streamErr);
+            }
+            if (!closed) res.end();
+            return;
+        }
+
+        const data = await response.json();
         res.json(data);
     } catch (error) {
         console.error('[SERVER] Exception:', error);
@@ -136,7 +165,44 @@ app.post('/api/image', async (req, res) => {
     }
 });
 
-// 5. Generate Skill Package (.skill ZIP file)
+// 5. Harness Bundle (ZIP laid out as a real repo)
+app.post('/api/harness-bundle', async (req, res) => {
+    try {
+        const { name, files } = req.body || {};
+
+        if (!name || !Array.isArray(files) || files.length === 0) {
+            return res.status(400).json({ error: 'A bundle name and a non-empty files array are required.' });
+        }
+
+        const safeName = String(name).toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '') || 'harness';
+
+        res.setHeader('Content-Type', 'application/zip');
+        res.setHeader('Content-Disposition', `attachment; filename="${safeName}-harness.zip"`);
+
+        const archive = archiver('zip', { zlib: { level: 9 } });
+        archive.on('error', (err) => {
+            console.error('[SERVER] Harness Archive Error:', err);
+            if (!res.headersSent) res.status(500).json({ error: 'Failed to create harness bundle' });
+        });
+        archive.pipe(res);
+
+        files.forEach(file => {
+            if (!file || typeof file.path !== 'string' || typeof file.content !== 'string') return;
+            // Keep every entry inside the bundle root.
+            const entry = file.path.replace(/^[\/]+/, '').replace(/\.\.[\/]/g, '');
+            if (!entry) return;
+            archive.append(file.content, { name: `${safeName}-harness/${entry}` });
+        });
+
+        await archive.finalize();
+        console.log(`[SERVER] Harness bundle "${safeName}-harness.zip" generated (${files.length} files)`);
+    } catch (error) {
+        console.error('[SERVER] Harness Bundle Error:', error);
+        if (!res.headersSent) res.status(500).json({ error: 'Failed to generate harness bundle' });
+    }
+});
+
+// 6. Generate Skill Package (.skill ZIP file)
 app.post('/api/skill-package', async (req, res) => {
     try {
         const { name, description, skillType, skillMd, scripts, references, assets } = req.body;

@@ -12,11 +12,58 @@ left, and watch the run assemble in the orchestration column on the right.
 | **Optimizer** | A rough draft becomes an engineered prompt, shaped for a specific provider dialect (Claude XML, Gemini PTCF, OpenAI Markdown, or universal). Answer it in place or hand it to another chatbot. |
 | **Agent Builder** | Name, description, system instructions and conversation starters for a custom agent. |
 | **Skills** | A portable `SKILL.md` package — SKILL.md, scripts, reference docs, folder tree — downloadable as a `.skill` archive. The Agent Skills standard is no longer Claude-only: Claude Code, Codex CLI, Cursor and Gemini CLI load the same folder. |
+| **Harness Builder** | A complete agent harness — rules, playbooks, subagents, skills, MCP wiring, hooks, permissions, execution layer, state schema, evals, context budget, anti-patterns and the QHX improvement loop. Streams layer by layer, refines any single layer in place, and downloads as a repo-shaped `.zip`. |
 | **Agent Rules** | The file every coding agent reads before touching a repo. Emits the AGENTS.md open standard plus any harness-native variant you ask for — CLAUDE.md, `.cursor/rules/*.mdc`, `.github/copilot-instructions.md`, GEMINI.md, `.windsurf/rules/`, CONVENTIONS.md — all derived from one spec. |
 | **Plugin Builder** | A Claude Code plugin design: commands, agents, skills, hooks and MCP servers, exported as build instructions any AI can scaffold from. |
 | **Loop Design** | A Loop Engineering spec — trigger, actions, proof, memory, stop conditions — pressure-tested by a second-pass Loop Critic. Exports as markdown, JSON or a Mermaid diagram. |
 | **Content Loop** | A repeatable content *engine*: pillars, a dated cycle calendar, channel-native drafts, Venice-generated key visuals, and the feedback loop that makes cycle two better than cycle one. |
 | **Gauntlet Loop** | A tool-creation gauntlet: parallel sub-agents that each own one dimension, an adversarial critic scoring against a named gold standard, a blind side-by-side comparison protocol, and a loop that will not exit until the critic picks your build. Outputs a runnable mega-prompt. |
+
+## Harness Builder
+
+A harness is not a prompt. It is the environment that turns an agent into a
+repeatable operator, and this generator writes the whole thing.
+
+The recipe model, the streaming reveal, per-layer refinement and the repo-shaped
+bundle are ported from [harness-engineering](https://github.com/vivmuk/harness-engineering).
+Its seven original layers describe what an agent should *do*; five were added
+for what stops it doing the wrong thing:
+
+| Layer | Lands at | Purpose |
+| --- | --- | --- |
+| Rules | `AGENTS.md` | Read first. Every line traces to a failure it prevents. |
+| Playbooks | `.claude/commands/<slug>.md` | One-line commands for recurring pipelines. |
+| Subagents | `.claude/agents/README.md` | Narrow roles — and a context pressure valve. |
+| Skills | `.claude/skills/<slug>/SKILL.md` | Portable packaged knowledge. |
+| Execution | `docs/execution-layer.md` | Typed code and the capability registry. |
+| State | `docs/state-schema.md` | Save, resume, validate. |
+| **MCP** | `docs/mcp-servers.md` | External tools, and what stays out of MCP. |
+| **Hooks** | `docs/hooks.md` | Deterministic enforcement, not advice. |
+| **Permissions** | `docs/permissions.md` | Allowlist, prompt, deny. |
+| **Evals** | `docs/evals.md` | Regression, injection, timeout, tool hygiene. |
+| **Context budget** | `docs/context-budget.md` | Eager vs on-demand, compaction, delegation. |
+| Anti-patterns | `anti-patterns.md` | The living failure log that seeds the rules. |
+| QHX loop | `qhx-loop.md` | Quality + Human feedback + eXecution. |
+| Model routing | `docs/model-routing.md` | Cheap-first, with an escalation trigger. |
+
+Bold rows are the additions. The triage rule they encode: a hook when the agent
+*violated* a known rule, a skill or MCP server when it *lacked* information, a
+permission restriction when it used something *dangerous*.
+
+`CLAUDE.md` ships as a pointer to `AGENTS.md` rather than a copy — two rule files
+that drift apart are worse than one.
+
+### Streaming and refinement
+
+The build runs as two streamed calls — operating layers, then control layers with
+the first pass as context. Layers appear as they are written: `/api/chat` passes
+Venice's server-sent events straight through, and the client reads top-level
+string fields out of the still-incomplete JSON, including the partial value of
+the field currently being written. The view follows whatever layer is being
+written until you click a tab, at which point it stays where you put it.
+
+Any single layer can be rewritten in place with an instruction, with the rest of
+the harness supplied as context so the rewrite stays consistent.
 
 ## Agent Rules
 
@@ -122,8 +169,9 @@ Models Venice publishes no rate for are marked unpriced rather than guessed at.
 | --- | --- |
 | `GET /api/health` | Reports whether `VENICE_API_KEY` is present (never returns the key). |
 | `GET /api/models` | Venice model catalogue, used to populate every model dropdown. |
-| `POST /api/chat` | Chat completions proxy. |
+| `POST /api/chat` | Chat completions proxy. Pass `stream: true` and Venice's server-sent events are piped straight through. |
 | `POST /api/image` | Image generation proxy (`/image/generate`). Requires `model` and `prompt`. |
+| `POST /api/harness-bundle` | Zips a harness into a repo-shaped `.zip`. Entries are confined to the bundle root. |
 | `POST /api/skill-package` | Zips a generated skill into a downloadable `.skill` archive. |
 
 ## Design system
@@ -152,7 +200,7 @@ styles.css        Design tokens, shell, and every shared component
 generators.css    Components specific to Content Loop and Gauntlet Loop
 meter.js          Run progress bar, live cost metering, fetch instrumentation
 app.js            Optimizer, Agent Builder, Skills, Plugin Builder, Loop Design
-generators.js     Content Loop, Gauntlet Loop, and shared orchestration plumbing
+generators.js     Harness Builder, Agent Rules, Content Loop, Gauntlet Loop, shared plumbing
 server.js         Express server and the Venice proxy routes
 ```
 
@@ -167,7 +215,9 @@ server.js         Express server and the Venice proxy routes
 ## Acknowledgements
 
 Powered by [Venice.ai](https://venice.ai). Design principles from
-[Impeccable](https://impeccable.style/).
+[Impeccable](https://impeccable.style/). The harness recipe model, streaming
+reveal and bundle layout are adapted from
+[harness-engineering](https://github.com/vivmuk/harness-engineering).
 
 ## License
 
