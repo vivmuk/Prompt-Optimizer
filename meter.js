@@ -67,19 +67,28 @@
 
   function num(v) { const n = Number(v); return isFinite(n) ? n : 0; }
 
+  async function loadCatalogue(query) {
+    const res = await fetch('/api/models' + query);
+    if (!res.ok) throw new Error(String(res.status));
+    const data = await res.json();
+    (data && data.data ? data.data : []).forEach(m => {
+      const rec = normalisePricing(m);
+      if (rec) pricing.set(m.id, rec);
+    });
+  }
+
   async function loadPricing() {
-    try {
-      const res = await fetch('/api/models');
-      if (!res.ok) throw new Error(String(res.status));
-      const data = await res.json();
-      (data && data.data ? data.data : []).forEach(m => {
-        const rec = normalisePricing(m);
-        if (rec) pricing.set(m.id, rec);
-      });
-    } catch (e) {
+    /* Text and image rates live in separate catalogues. Asking for each by
+       name is why an image model can be priced at all — a single unfiltered
+       request is not guaranteed to carry both. */
+    const results = await Promise.allSettled([
+      loadCatalogue('?type=text'),
+      loadCatalogue('?type=image')
+    ]);
+    if (results.every(r => r.status === 'rejected')) {
       /* No catalogue means no numbers — the UI says "unpriced" rather than
          inventing a figure. */
-      console.warn('[meter] pricing unavailable:', e.message);
+      console.warn('[meter] pricing unavailable:', results[0].reason && results[0].reason.message);
     }
     pricingReady = true;
     document.dispatchEvent(new CustomEvent('meter:pricing'));
@@ -142,9 +151,7 @@
   const TAB_MODEL_SELECT = {
     'optimizer':        '#model-select',
     'agent-builder':    '#agent-model-select',
-    /* app.js hardcodes this model for skill generation rather than reading a
-       picker, so the estimate has to name it explicitly. */
-    'anthropic-skills': { fixed: 'zai-org-glm-4.7' },
+    'anthropic-skills': '#anthropic-model-select',
     'plugin-builder':   '#plugin-model-select',
     'loop-design':      '#loop-model-select',
     'content-loop':     '#cl-model',
@@ -204,9 +211,19 @@
     const tabId = activeTab();
 
     return nativeFetch(input, init).then(res => {
+      if (!res.ok) return res;
+
+      /* A streamed completion is an event stream, not JSON. Read the clone as
+         text and pull `usage` out of the frames — without this the streaming
+         generators would report no cost at all. */
+      const streamed = /event-stream/i.test(res.headers.get('content-type') || '');
+      if (isChat && streamed) {
+        meterStreamedChat(res.clone(), tabId, requestedModel, startedAt);
+        return res;
+      }
+
       res.clone().json().then(data => {
         const elapsed = Math.round(performance.now() - startedAt);
-        if (!res.ok) return;
 
         if (isChat) {
           const u = data && data.usage;
@@ -238,6 +255,43 @@
       return res;
     });
   };
+
+  /* Drain a cloned event stream and record whatever usage it reported.
+     Venice emits a final usage frame when stream_options.include_usage is set;
+     when it does not, the call is still recorded so the operator can see it
+     happened, just marked unpriced rather than silently dropped. */
+  async function meterStreamedChat(clone, tabId, requestedModel, startedAt) {
+    let usage = null;
+    let model = requestedModel;
+    try {
+      const text = await clone.text();
+      text.split('\n').forEach(line => {
+        if (!line.startsWith('data:')) return;
+        const payload = line.slice(5).trim();
+        if (!payload || payload === '[DONE]') return;
+        let parsed;
+        try { parsed = JSON.parse(payload); } catch (e) { return; }
+        if (parsed.usage) usage = parsed.usage;
+        if (parsed.model) model = parsed.model;
+      });
+    } catch (e) { /* stream aborted — record what we know */ }
+
+    const inTok = usage ? Number(usage.prompt_tokens || 0) : null;
+    const outTok = usage ? Number(usage.completion_tokens || 0) : null;
+    const cachedTok = usage && usage.prompt_tokens_details
+      ? Number(usage.prompt_tokens_details.cached_tokens || 0) : 0;
+
+    record(tabId, {
+      kind: 'chat',
+      model: model,
+      inTok: inTok,
+      outTok: outTok,
+      cachedTok: cachedTok,
+      streamed: true,
+      ms: Math.round(performance.now() - startedAt),
+      usd: (usage && model) ? priceText(model, inTok, outTok, cachedTok) : null
+    });
+  }
 
   function activeTab() {
     const sec = $('main > .section.active');
@@ -490,7 +544,9 @@
 
     const rows = l.entries.map((e, i) => {
       const cells = e.kind === 'chat'
-        ? `<span class="bd-tokens">${fmtTokens(e.inTok)} in · ${fmtTokens(e.outTok)} out${e.cachedTok ? ` · ${fmtTokens(e.cachedTok)} cached` : ''}</span>`
+        ? `<span class="bd-tokens">${e.inTok == null
+             ? 'streamed · usage not reported'
+             : `${fmtTokens(e.inTok)} in · ${fmtTokens(e.outTok)} out${e.cachedTok ? ` · ${fmtTokens(e.cachedTok)} cached` : ''}`}</span>`
         : `<span class="bd-tokens">${e.count} image${e.count === 1 ? '' : 's'}</span>`;
       return `
         <div class="bd-row">
@@ -513,7 +569,7 @@
         <span class="bd-ms"></span>
         <span class="bd-usd">${fmtUsd(l.total)}</span>
       </div>` +
-      (l.unpriced ? `<p class="meter-note">* ${l.unpriced} call${l.unpriced === 1 ? '' : 's'} could not be priced — Venice publishes no rate for that model.</p>` : '');
+      (l.unpriced ? `<p class="meter-note">* ${l.unpriced} call${l.unpriced === 1 ? '' : 's'} could not be priced — either Venice publishes no rate for that model, or a streamed response reported no usage.</p>` : '');
   }
 
   function escape(s) {
@@ -524,10 +580,6 @@
 
   function selectedModelFor(tabId) {
     const sel = TAB_MODEL_SELECT[tabId];
-    /* Must test the type, not just truthiness of .fixed — every String
-       carries a legacy String.prototype.fixed method, so a plain selector
-       string would otherwise resolve to that function. */
-    if (sel && typeof sel === 'object') return sel.fixed || null;
     const el = (typeof sel === 'string') ? $(sel) : null;
     if (el && el.value) return el.value;
     /* Tabs without their own picker follow the Optimizer's model, which is
@@ -571,8 +623,7 @@
   }
 
   function watchModelPickers() {
-    const ids = new Set(Object.values(TAB_MODEL_SELECT)
-      .filter(v => typeof v === 'string').concat(['#model-select']));
+    const ids = new Set(Object.values(TAB_MODEL_SELECT).concat(['#model-select']));
 
     ids.forEach(sel => {
       const el = $(sel);

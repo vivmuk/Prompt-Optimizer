@@ -108,7 +108,13 @@ app.get('/api/models', async (req, res) => {
             return res.status(500).json({ error: 'Configuration Error: VENICE_API_KEY missing on server.' });
         }
 
-        const response = await fetch('https://api.venice.ai/api/v1/models', {
+        // Forward the type filter (text / image / tts / ...) so callers can ask
+        // for just the catalogue they need.
+        const type = typeof req.query.type === 'string' ? req.query.type : '';
+        const url = 'https://api.venice.ai/api/v1/models' +
+            (type ? `?type=${encodeURIComponent(type)}` : '');
+
+        const response = await fetch(url, {
             method: 'GET',
             headers: { 'Authorization': `Bearer ${apiKey}` }
         });

@@ -137,7 +137,10 @@
         ],
         temperature: 0.7,
         max_tokens: 8000,
-        stream: true
+        stream: true,
+        /* Without this the stream carries no usage block and the run cannot
+           be costed. */
+        stream_options: { include_usage: true }
       }, opts || {}))
     });
 
@@ -400,38 +403,85 @@
     { id: 'venice-uncensored', name: 'Venice Uncensored' }
   ];
 
+  const FALLBACK_IMAGE_MODELS = [
+    { id: 'nano-banana-2', name: 'Nano Banana 2' },
+    { id: 'z-image-turbo', name: 'Z-Image Turbo' },
+    { id: 'flux-dev', name: 'FLUX Dev' },
+    { id: 'qwen-image', name: 'Qwen Image' }
+  ];
+
+  /* The human-readable name lives on model_spec, not at the top level — reading
+     only m.name leaves every dropdown showing raw ids. */
+  function modelLabel(m) {
+    const spec = m.model_spec || {};
+    let label = spec.name || m.name || m.id;
+    if (spec.beta || spec.betaModel) label += ' (beta)';
+    return label;
+  }
+
   function fillModels(select, models, preferred) {
     if (!select) return;
+    const current = select.value;
     select.innerHTML = '';
     models.forEach(m => {
       const o = document.createElement('option');
       o.value = m.id;
-      o.textContent = m.name || m.id;
+      o.textContent = modelLabel(m);
       select.appendChild(o);
     });
-    const match = models.find(m => m.id === preferred);
-    if (match) select.value = match.id;
+    /* Keep the operator's own choice across a refresh; otherwise fall to the
+       preferred default, otherwise leave the first entry selected. */
+    const keep = models.some(m => m.id === current) ? current
+               : (models.some(m => m.id === preferred) ? preferred : null);
+    if (keep) select.value = keep;
+  }
+
+  async function fetchCatalogue(type) {
+    const res = await fetch('/api/models?type=' + encodeURIComponent(type));
+    if (!res.ok) throw new Error(String(res.status));
+    const data = await res.json();
+    if (!data || !Array.isArray(data.data) || !data.data.length) throw new Error('empty catalogue');
+    /* An offline model is in the catalogue but cannot serve a request — listing
+       it just invites a failed run. */
+    const usable = data.data.filter(m => !(m.model_spec && m.model_spec.offline));
+    return usable.length ? usable : data.data;
   }
 
   async function loadModels() {
     const dot = $('#api-dot');
-    let text = [], models = FALLBACK_MODELS;
+    let textModels = FALLBACK_MODELS;
+    let imageModels = FALLBACK_IMAGE_MODELS;
+    let reachable = true;
+
     try {
-      const res = await fetch('/api/models');
-      if (!res.ok) throw new Error(String(res.status));
-      const data = await res.json();
-      if (data && Array.isArray(data.data) && data.data.length) {
-        text = data.data.filter(m => !m.type || m.type === 'text');
-        models = text.length ? text : data.data;
-        if (dot) dot.classList.remove('is-down');
-      }
+      textModels = await fetchCatalogue('text');
     } catch (e) {
-      if (dot) { dot.classList.add('is-down'); dot.title = 'Venice proxy unreachable — using default model list'; }
+      reachable = false;
     }
-    fillModels($('#cl-model'), models, 'zai-org-glm-4.7');
-    fillModels($('#gl-model'), models, 'deepseek-r1-671b-thinking');
-    fillModels($('#ar-model'), models, 'zai-org-glm-4.7');
-    fillModels($('#hb-model'), models, 'deepseek-r1-671b-thinking');
+
+    try {
+      imageModels = await fetchCatalogue('image');
+    } catch (e) {
+      /* Text may be fine while image is not; only the text catalogue decides
+         whether the proxy counts as reachable. */
+    }
+
+    if (dot) {
+      dot.classList.toggle('is-down', !reachable);
+      dot.title = reachable
+        ? textModels.length + ' text models · ' + imageModels.length + ' image models'
+        : 'Venice proxy unreachable — using default model list';
+    }
+
+    /* Every generator picks from the same live catalogue. */
+    fillModels($('#cl-model'), textModels, 'zai-org-glm-4.7');
+    fillModels($('#gl-model'), textModels, 'deepseek-r1-671b-thinking');
+    fillModels($('#ar-model'), textModels, 'zai-org-glm-4.7');
+    fillModels($('#hb-model'), textModels, 'deepseek-r1-671b-thinking');
+    fillModels($('#anthropic-model-select'), textModels, 'zai-org-glm-4.7');
+
+    fillModels($('#cl-image-model'), imageModels, 'nano-banana-2');
+    fillModels($('#hb-image-model'), imageModels, 'nano-banana-2');
   }
 
   /* ── Generic control wiring: chips, segmented, ranges ───────────────── */
