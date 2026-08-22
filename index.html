@@ -62,14 +62,36 @@
 
       <div class="rail-group-label">Package</div>
       <nav class="nav-tabs">
+        <button class="tab-btn" data-tab="harness-builder">
+          <span class="tab-glyph">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.6"/><path d="M10.5 7h3M7 10.5v3M17 10.5v3M10.5 17h3"/></svg>
+          </span>
+          <span class="tab-copy">
+            <span class="tab-label">Harness Builder</span>
+            <span class="tab-hint">Full agent harness</span>
+          </span>
+          <span class="tab-badge">New</span>
+        </button>
+
         <button class="tab-btn" data-tab="anthropic-skills">
           <span class="tab-glyph">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4H18a2 2 0 0 1 2 2v13.5"/><path d="M6.5 20H20M6.5 20A2.5 2.5 0 0 1 6.5 15H20"/><path d="M9.5 8h6"/></svg>
           </span>
           <span class="tab-copy">
             <span class="tab-label">Skills</span>
-            <span class="tab-hint">.skill packages</span>
+            <span class="tab-hint">Portable SKILL.md</span>
           </span>
+        </button>
+
+        <button class="tab-btn" data-tab="agent-rules">
+          <span class="tab-glyph">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 3.5h8L19 8v12.5H6.5Z"/><path d="M14 3.5V8h5"/><path d="M9.5 12.5h6M9.5 16h4"/></svg>
+          </span>
+          <span class="tab-copy">
+            <span class="tab-label">Agent Rules</span>
+            <span class="tab-hint">AGENTS.md &amp; friends</span>
+          </span>
+          <span class="tab-badge">New</span>
         </button>
 
         <button class="tab-btn" data-tab="plugin-builder">
@@ -336,7 +358,142 @@
       </div>
     </section>
 
-    <!-- ── 3 · ANTHROPIC SKILLS ─────────────────────────────────────────── -->
+    <!-- ── 3 · HARNESS BUILDER ──────────────────────────────────────────── -->
+    <section id="harness-builder" class="section">
+
+      <div class="panel">
+        <div class="section-head">
+          <svg class="motif" viewBox="0 0 44 44" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <rect width="44" height="44" fill="#16272B"/>
+            <rect x="8" y="8" width="12" height="12" rx="2.5" fill="none" stroke="#E4622B" stroke-width="2.2"/>
+            <rect x="24" y="8" width="12" height="12" rx="2.5" fill="none" stroke="#F0A93C" stroke-width="2.2"/>
+            <rect x="8" y="24" width="12" height="12" rx="2.5" fill="none" stroke="#35B98C" stroke-width="2.2"/>
+            <rect x="24" y="24" width="12" height="12" rx="2.5" fill="none" stroke="#E4622B" stroke-width="2.2"/>
+            <path d="M20 14h4M14 20v4M30 20v4M20 30h4" stroke="#A6B2AF" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <h2>Harness Builder</h2>
+        </div>
+        <p class="section-desc">A harness is not a prompt — it is the environment that turns an agent into a repeatable operator. Describe the work you want harnessed and get the whole structure: rules, playbooks, subagents, skills, MCP wiring, hooks, permissions, execution layer, state schema, evals, context budget and the loop that makes it better every run.</p>
+
+        <div class="panel-rule">Use case</div>
+        <div class="input-group">
+          <label for="hb-usecase">What workflow should this harness run?</label>
+          <textarea id="hb-usecase" style="min-height:150px;" placeholder="e.g. Produce a weekly 8-minute YouTube episode from a research brief: script it, generate the voiceover, cut the footage against an EDL, and publish with thumbnails."></textarea>
+        </div>
+
+        <div class="input-group">
+          <label for="hb-stack">Tools and services it must drive</label>
+          <input type="text" id="hb-stack" placeholder="e.g. ffmpeg, ElevenLabs, YouTube Data API, Postgres">
+        </div>
+
+        <div class="panel-rule">Autonomy</div>
+        <div class="input-group">
+          <label for="hb-autonomy">How much should it do without asking?</label>
+          <div class="segmented" id="hb-autonomy">
+            <button type="button" data-heat="supervised">Confirm each step</button>
+            <button type="button" data-heat="balanced" class="active">Confirm at gates</button>
+            <button type="button" data-heat="autonomous">Run to completion</button>
+          </div>
+        </div>
+
+        <div class="panel-rule">Target harness</div>
+        <div class="chip-grid" id="hb-targets">
+          <div class="chip selected" data-target="claude-code">Claude Code</div>
+          <div class="chip" data-target="codex">Codex CLI</div>
+          <div class="chip" data-target="cursor">Cursor</div>
+          <div class="chip" data-target="gemini">Gemini CLI</div>
+        </div>
+
+        <div class="panel-rule">Include</div>
+        <div class="checkbox-group">
+          <label><input type="checkbox" id="hb-diagram" checked> Architecture diagram (Mermaid)</label>
+          <label><input type="checkbox" id="hb-image"> Rendered illustration via Venice</label>
+        </div>
+
+        <div class="panel-rule">Model</div>
+        <div class="input-group">
+          <label for="hb-model">Architect model</label>
+          <select id="hb-model"></select>
+        </div>
+        <div class="input-group" id="hb-image-model-group" style="display:none;">
+          <label for="hb-image-model">Image model</label>
+          <select id="hb-image-model">
+            <option value="nano-banana-2">Nano Banana 2</option>
+            <option value="z-image-turbo">Z-Image Turbo</option>
+            <option value="flux-dev">FLUX Dev</option>
+          </select>
+        </div>
+
+        <div class="toolbar">
+          <button class="action-btn" id="hb-run-btn">Build the Harness</button>
+          <button class="action-btn secondary" id="hb-stop-btn" style="display:none;">Stop</button>
+          <span class="inline-status" id="hb-inline-status" style="display:none;"><span id="hb-progress">0%</span></span>
+        </div>
+      </div>
+
+      <div class="stage">
+        <div class="stage-head">
+          <span class="stage-title">Orchestration</span>
+          <span class="stage-pulse" data-pulse-for="harness-builder"><span class="dot"></span><span class="pulse-text">Idle</span></span>
+        </div>
+        <div class="stage-body">
+
+          <div class="stage-empty" data-empty-for="harness-builder">
+            <svg viewBox="0 0 120 120" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">
+              <rect x="16" y="16" width="36" height="36" rx="6" stroke="#E4622B" stroke-width="2"/>
+              <rect x="68" y="16" width="36" height="36" rx="6"/>
+              <rect x="16" y="68" width="36" height="36" rx="6"/>
+              <rect x="68" y="68" width="36" height="36" rx="6" stroke="#35B98C" stroke-width="2"/>
+              <path d="M52 34h16M34 52v16M86 52v16M52 86h16" stroke-linecap="round"/>
+            </svg>
+            <h4>No harness built</h4>
+            <p>Describe the workflow. Each layer streams in as it is written — rules first, then the specialists, controls and the improvement loop.</p>
+          </div>
+
+          <div id="hb-run" style="display:none;">
+
+            <div class="result-area">
+              <h3>Pipeline</h3>
+              <div class="pipeline" id="hb-pipeline"></div>
+            </div>
+
+            <div class="result-area" id="hb-summary-panel" style="display:none;margin-top:24px;">
+              <h3>Harness</h3>
+              <div class="metric-row" id="hb-metrics"></div>
+              <div class="prose" id="hb-summary" style="margin-top:20px;"></div>
+            </div>
+
+            <div id="hb-result" style="display:none;margin-top:24px;">
+              <div class="skill-file-tabs" id="hb-out-tabs">
+                <button class="copy-btn" id="hb-copy-btn">Copy</button>
+              </div>
+              <div class="skill-file-display">
+                <div id="hb-output" style="padding:24px;max-height:52vh;overflow:auto;"></div>
+              </div>
+
+              <div class="refine-bar" id="hb-refine-bar" style="display:none;">
+                <label for="hb-refine-input">Refine this layer</label>
+                <div class="refine-row">
+                  <input type="text" id="hb-refine-input" placeholder="e.g. add a rollback step, and name the exact ffmpeg flags">
+                  <button class="action-btn secondary" id="hb-refine-btn">Rewrite</button>
+                </div>
+              </div>
+
+              <div class="download-bar" style="margin-top:20px;">
+                <button class="action-btn" id="hb-download-zip">Download Harness (.zip)</button>
+                <button class="action-btn secondary" id="hb-download-md">Download as Markdown</button>
+                <button class="action-btn secondary" id="hb-download-json">JSON</button>
+                <button class="action-btn secondary" id="hb-regenerate">Regenerate</button>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ── 4 · AGENT SKILLS ─────────────────────────────────────────────── -->
     <section id="anthropic-skills" class="section">
 
       <div class="panel">
@@ -348,7 +505,7 @@
           </svg>
           <h2>Agent Skills</h2>
         </div>
-        <p class="section-desc">Create modular <code style="font-family:var(--font-mono);font-size:.85em;">.skill</code> packages for Claude Code and Anthropic agents.</p>
+        <p class="section-desc">Build a portable <code style="font-family:var(--font-mono);font-size:.85em;">SKILL.md</code> package. The Agent Skills standard is no longer Claude-only — Claude Code, Codex CLI, Cursor and Gemini CLI all load the same folder.</p>
 
         <div class="panel-rule">Skill type</div>
         <div class="skill-type-grid">
@@ -446,7 +603,124 @@
       </div>
     </section>
 
-    <!-- ── 4 · PLUGIN BUILDER ───────────────────────────────────────────── -->
+    <!-- ── 5 · AGENT RULES ──────────────────────────────────────────────── -->
+    <section id="agent-rules" class="section">
+
+      <div class="panel">
+        <div class="section-head">
+          <svg class="motif" viewBox="0 0 44 44" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <rect width="44" height="44" fill="#16272B"/>
+            <path d="M12 8h14l6 6v22H12Z" fill="none" stroke="#E4622B" stroke-width="2.2" stroke-linejoin="round"/>
+            <path d="M26 8v6h6" fill="none" stroke="#F0A93C" stroke-width="2.2" stroke-linejoin="round"/>
+            <path d="M17 23h11M17 28h7" stroke="#35B98C" stroke-width="2.2" stroke-linecap="round"/>
+          </svg>
+          <h2>Agent Rules</h2>
+        </div>
+        <p class="section-desc">Write the file every coding agent reads before it touches your repo. AGENTS.md is the open standard — Codex CLI, Cursor, Copilot, Gemini CLI, Aider, Windsurf and Zed all read it natively. Pick any harness that needs its own format and get that too, derived from the same source.</p>
+
+        <div class="panel-rule">Project</div>
+        <div class="input-group">
+          <label for="ar-name">Repository or project name</label>
+          <input type="text" id="ar-name" placeholder="e.g. checkout-service">
+        </div>
+        <div class="input-group">
+          <label for="ar-description">What is it, and what should an agent know before changing it?</label>
+          <textarea id="ar-description" placeholder="e.g. Node/TypeScript checkout service behind Stripe. Payment code is audited — changes there need a test and a second reviewer. The legacy /v1 routes are frozen."></textarea>
+        </div>
+        <div class="input-group">
+          <label for="ar-stack">Stack</label>
+          <input type="text" id="ar-stack" placeholder="e.g. TypeScript, Node 22, Fastify, Postgres, Vitest">
+        </div>
+
+        <div class="panel-rule">Commands</div>
+        <p class="section-desc" style="margin-bottom:var(--s3);font-size:.79rem;">The highest-value thing in the file. Exact commands, so an agent never guesses at your scripts.</p>
+        <div class="input-group">
+          <label for="ar-commands">Setup, build, test, lint — one per line</label>
+          <textarea id="ar-commands" style="min-height:96px;" placeholder="pnpm install&#10;pnpm build&#10;pnpm test&#10;pnpm lint --fix"></textarea>
+        </div>
+
+        <div class="panel-rule">House rules</div>
+        <div class="input-group">
+          <label for="ar-conventions">Conventions and hard limits</label>
+          <textarea id="ar-conventions" placeholder="e.g. Conventional commits. No default exports. Never edit db/migrations by hand. Every PR needs a changeset."></textarea>
+        </div>
+
+        <div class="panel-rule">Target harnesses</div>
+        <div class="chip-grid" id="ar-harnesses">
+          <div class="chip selected" data-harness="agents">AGENTS.md</div>
+          <div class="chip" data-harness="claude">Claude Code</div>
+          <div class="chip" data-harness="cursor">Cursor</div>
+          <div class="chip" data-harness="copilot">Copilot</div>
+          <div class="chip" data-harness="gemini">Gemini CLI</div>
+          <div class="chip" data-harness="windsurf">Windsurf</div>
+          <div class="chip" data-harness="aider">Aider</div>
+        </div>
+        <p class="chatbot-link-hint" style="margin-top:calc(var(--s2) * -1);">Codex CLI, Cursor, Copilot, Gemini CLI, Aider, Windsurf and Zed all read AGENTS.md — only add a harness here when you want its native format as well.</p>
+
+        <div class="panel-rule">Model</div>
+        <div class="input-group">
+          <label for="ar-model">Author model</label>
+          <select id="ar-model"></select>
+        </div>
+
+        <div class="toolbar">
+          <button class="action-btn" id="ar-run-btn">Write the Rules</button>
+          <span class="inline-status" id="ar-inline-status" style="display:none;"><span id="ar-progress">0%</span></span>
+        </div>
+      </div>
+
+      <div class="stage">
+        <div class="stage-head">
+          <span class="stage-title">Orchestration</span>
+          <span class="stage-pulse" data-pulse-for="agent-rules"><span class="dot"></span><span class="pulse-text">Idle</span></span>
+        </div>
+        <div class="stage-body">
+
+          <div class="stage-empty" data-empty-for="agent-rules">
+            <svg viewBox="0 0 120 120" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">
+              <path d="M32 18h34l22 22v62H32Z" stroke="#E4622B" stroke-width="2" stroke-linejoin="round"/>
+              <path d="M66 18v22h22" stroke="#E4622B" stroke-width="2" stroke-linejoin="round"/>
+              <path d="M44 58h32M44 70h32M44 82h20" stroke-linecap="round"/>
+            </svg>
+            <h4>No rules written</h4>
+            <p>Describe the project and its exact commands. The AGENTS.md, any harness-native variants, and an install guide land here.</p>
+          </div>
+
+          <div id="ar-run" style="display:none;">
+
+            <div class="result-area">
+              <h3>Pipeline</h3>
+              <div class="pipeline" id="ar-pipeline"></div>
+            </div>
+
+            <div class="result-area" id="ar-summary-panel" style="display:none;margin-top:24px;">
+              <h3>Coverage</h3>
+              <div class="metric-row" id="ar-metrics"></div>
+              <div class="prose" id="ar-summary" style="margin-top:20px;"></div>
+            </div>
+
+            <div id="ar-result" style="display:none;margin-top:24px;">
+              <div class="skill-file-tabs" id="ar-out-tabs">
+                <button class="copy-btn" id="ar-copy-btn">Copy</button>
+              </div>
+              <div class="skill-file-display">
+                <div id="ar-output" style="padding:24px;max-height:58vh;overflow:auto;"></div>
+              </div>
+
+              <div class="download-bar" style="margin-top:20px;">
+                <button class="action-btn" id="ar-download-bundle">Download All Files</button>
+                <button class="action-btn secondary" id="ar-download-json">Download JSON</button>
+                <button class="action-btn secondary" id="ar-regenerate">Regenerate</button>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ── 6 · PLUGIN BUILDER ───────────────────────────────────────────── -->
     <section id="plugin-builder" class="section">
 
       <div class="panel">
@@ -549,7 +823,7 @@
       </div>
     </section>
 
-    <!-- ── 5 · LOOP DESIGN ──────────────────────────────────────────────── -->
+    <!-- ── 7 · LOOP DESIGN ──────────────────────────────────────────────── -->
     <section id="loop-design" class="section">
 
       <div class="panel">
@@ -646,7 +920,7 @@
       </div>
     </section>
 
-    <!-- ── 6 · CONTENT LOOP ─────────────────────────────────────────────── -->
+    <!-- ── 8 · CONTENT LOOP ─────────────────────────────────────────────── -->
     <section id="content-loop" class="section">
 
       <div class="panel">
@@ -796,7 +1070,7 @@
       </div>
     </section>
 
-    <!-- ── 7 · GAUNTLET LOOP ────────────────────────────────────────────── -->
+    <!-- ── 9 · GAUNTLET LOOP ────────────────────────────────────────────── -->
     <section id="gauntlet-loop" class="section">
 
       <div class="panel">

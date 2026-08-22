@@ -119,6 +119,128 @@
     return parsed;
   }
 
+  /* Stream a completion, calling onDelta with the whole buffer so far.
+
+     The Venice proxy pipes server-sent events straight through, so a caller
+     can render fields as they arrive rather than waiting for the full object.
+     Falls back to a normal completion if the response is not an event stream —
+     a proxy without the passthrough still works, just without the reveal. */
+  async function chatStream(model, system, user, opts, onDelta) {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(Object.assign({
+        model: model,
+        messages: [
+          { role: 'system', content: system },
+          { role: 'user', content: user }
+        ],
+        temperature: 0.7,
+        max_tokens: 8000,
+        stream: true
+      }, opts || {}))
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => null);
+      throw new Error((err && (err.error || err.message)) || ('Venice returned ' + res.status));
+    }
+
+    const contentType = res.headers.get('content-type') || '';
+    if (!/event-stream/i.test(contentType) || !res.body) {
+      const data = await res.json().catch(() => null);
+      const content = data && data.choices && data.choices[0] && data.choices[0].message
+        ? data.choices[0].message.content : '';
+      if (!content) throw new Error('Venice returned an empty completion.');
+      if (onDelta) onDelta(content);
+      return content;
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let carry = '';
+    let buffer = '';
+
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      carry += decoder.decode(value, { stream: true });
+
+      /* SSE frames are separated by a blank line; keep the trailing partial. */
+      const frames = carry.split('\n\n');
+      carry = frames.pop() || '';
+
+      for (const frame of frames) {
+        for (const line of frame.split('\n')) {
+          if (!line.startsWith('data:')) continue;
+          const payload = line.slice(5).trim();
+          if (!payload || payload === '[DONE]') continue;
+          let parsed;
+          try { parsed = JSON.parse(payload); } catch (e) { continue; }
+          const delta = parsed.choices && parsed.choices[0] &&
+            (parsed.choices[0].delta || parsed.choices[0].message);
+          if (delta && typeof delta.content === 'string') {
+            buffer += delta.content;
+            if (onDelta) onDelta(buffer);
+          }
+        }
+      }
+    }
+
+    if (!buffer.trim()) throw new Error('Venice returned an empty completion.');
+    return buffer;
+  }
+
+  /* Pull whatever top-level string fields are readable out of a JSON object
+     that is still being written. Values arrive character by character, so the
+     last field is normally an unterminated string — that partial value is
+     returned too, which is the whole point of the progressive reveal. */
+  function extractPartialFields(buffer, fields) {
+    const text = String(buffer || '').replace(/```json/gi, '').replace(/```/g, '');
+    const out = {};
+
+    fields.forEach(field => {
+      const key = '"' + field + '"';
+      const at = text.indexOf(key);
+      if (at === -1) return;
+
+      /* Step over the key, its colon and the opening quote. */
+      let i = at + key.length;
+      while (i < text.length && /\s/.test(text[i])) i++;
+      if (text[i] !== ':') return;
+      i++;
+      while (i < text.length && /\s/.test(text[i])) i++;
+      if (text[i] !== '"') return;
+      i++;
+
+      let value = '';
+      let complete = false;
+      for (; i < text.length; i++) {
+        const ch = text[i];
+        if (ch === '\\') {
+          const next = text[i + 1];
+          if (next === undefined) break;          // escape split across chunks
+          value += ({ n: '\n', t: '\t', r: '\r', b: '\b', f: '\f' })[next] ||
+                   (next === 'u' ? unescapeUnicode(text, i) : next);
+          i += (next === 'u') ? 5 : 1;
+          continue;
+        }
+        if (ch === '"') { complete = true; break; }
+        value += ch;
+      }
+
+      if (value.trim()) out[field] = { text: value, complete: complete };
+    });
+
+    return out;
+  }
+
+  function unescapeUnicode(text, i) {
+    const hex = text.slice(i + 2, i + 6);
+    if (!/^[0-9a-fA-F]{4}$/.test(hex)) return '';
+    return String.fromCharCode(parseInt(hex, 16));
+  }
+
   /* Aspect-ratio models (nano-banana family) and width/height models take
      different sizing idioms — send whichever the chosen model understands. */
   async function generateImage(model, prompt, aspect) {
@@ -308,6 +430,8 @@
     }
     fillModels($('#cl-model'), models, 'zai-org-glm-4.7');
     fillModels($('#gl-model'), models, 'deepseek-r1-671b-thinking');
+    fillModels($('#ar-model'), models, 'zai-org-glm-4.7');
+    fillModels($('#hb-model'), models, 'deepseek-r1-671b-thinking');
   }
 
   /* ── Generic control wiring: chips, segmented, ranges ───────────────── */
@@ -1153,6 +1277,867 @@ Respond with ONLY this JSON object, no prose and no code fences:
   }
 
   /* ══════════════════════════════════════════════════════════════════════
+     HARNESS BUILDER
+
+     Ported from vivmuk/harness-engineering: the recipe model, the streaming
+     progressive reveal, per-section refinement and the repo-shaped bundle.
+
+     Extended where that model predates current practice. The original seven
+     layers (rules, playbooks, agents, skills, execution, state, anti-patterns)
+     describe what an agent should DO; they say nothing about what stops it
+     doing the wrong thing. Five layers added for that: MCP wiring, hooks,
+     permissions, evals and a context budget.
+     ══════════════════════════════════════════════════════════════════════ */
+
+  const HB_STEPS = [
+    { key: 'core',     label: 'Write the operating layers', weight: 2.2 },
+    { key: 'controls', label: 'Write the control layers',   weight: 2.2 },
+    { key: 'image',    label: 'Render the architecture',    weight: 1 },
+    { key: 'assemble', label: 'Assemble the bundle',        weight: 0.2 }
+  ];
+
+  /* Every layer: which call writes it, its label, and where it lands in a repo.
+     `path: null` means the layer is guidance that ships as documentation. */
+  const HB_LAYERS = [
+    { key: 'rules',         stage: 'core',     label: 'Rules',          path: 'AGENTS.md' },
+    { key: 'playbook',      stage: 'core',     label: 'Playbooks',      path: '.claude/commands/{slug}.md' },
+    { key: 'agents',        stage: 'core',     label: 'Subagents',      path: '.claude/agents/README.md' },
+    { key: 'skills',        stage: 'core',     label: 'Skills',         path: '.claude/skills/{slug}/SKILL.md' },
+    { key: 'executionLayer',stage: 'core',     label: 'Execution',      path: 'docs/execution-layer.md' },
+    { key: 'stateSchema',   stage: 'core',     label: 'State',          path: 'docs/state-schema.md' },
+    { key: 'mcp',           stage: 'controls', label: 'MCP',            path: 'docs/mcp-servers.md' },
+    { key: 'hooks',         stage: 'controls', label: 'Hooks',          path: 'docs/hooks.md' },
+    { key: 'permissions',   stage: 'controls', label: 'Permissions',    path: 'docs/permissions.md' },
+    { key: 'evals',         stage: 'controls', label: 'Evals',          path: 'docs/evals.md' },
+    { key: 'contextBudget', stage: 'controls', label: 'Context budget', path: 'docs/context-budget.md' },
+    { key: 'antiPatterns',  stage: 'controls', label: 'Anti-patterns',  path: 'anti-patterns.md' },
+    { key: 'qhxLoop',       stage: 'controls', label: 'QHX loop',       path: 'qhx-loop.md' },
+    { key: 'modelRouting',  stage: 'controls', label: 'Model routing',  path: 'docs/model-routing.md' }
+  ];
+
+  const HB_CORE_FIELDS = ['domain', 'summary'].concat(
+    HB_LAYERS.filter(l => l.stage === 'core').map(l => l.key));
+  const HB_CONTROL_FIELDS = HB_LAYERS.filter(l => l.stage === 'controls').map(l => l.key)
+    .concat(['mermaidDiagram', 'diagramPrompt']);
+
+  const HB_DOCTRINE = `A harness is not a prompt. It is the environment that turns an agent into a repeatable operator: rules it reads first, playbooks it runs, specialists it delegates to, skills it loads, typed code it calls, state it saves and resumes from, and a record of every way it has failed before.
+
+Hold to these, which are what separate a harness that works once from one that gets better every run:
+
+- AGENT INTERFACE FIRST. Design backward from the operator's first message. Decide what the agent does without asking, and exactly where it must stop and confirm.
+- EVERY RULE TRACES TO A FAILURE. If you cannot name the specific mistake a rule prevents, delete it. Zero aspirational rules — "write clean code" is noise that dilutes the rules that matter.
+- STATE OVER MEMORY. A harness is reusable because it saves and resumes. Name real files and real schemas.
+- COMPRESS BEFORE REASONING. Video, audio and large corpora do not go into context. Convert them to compact structured text and reach for the raw media only when needed.
+- CONFIRM AT GATES, NOT EVERYWHERE. Constant confirmation is as useless as none.
+- NEVER GUESS PARAMETERS. If the agent calls an API, it reads a capability registry that knows the supported fields, limits and costs.
+- SPECIFICITY OR SILENCE. Real file names, real command names, real flags. If the use case does not tell you something, say so rather than inventing it.`;
+
+  const HB_CORE_PROMPT = `You are a senior harness engineering architect. Turn the operator's use case into the operating layers of a production harness.
+
+${HB_DOCTRINE}
+
+Output strictly valid JSON matching this schema, and nothing else — no prose, no code fences:
+{
+  "domain": "short domain label, 1-4 words",
+  "summary": "2-3 sentences on what this harness does and what it refuses to do",
+  "rules": "markdown for AGENTS.md — the file the agent reads first. Global behaviour, defaults, non-negotiables, and where it must stop and confirm. Every line must trace to a failure it prevents.",
+  "playbook": "markdown for .claude/commands/<name>.md — the one-line commands that run recurring pipelines, with the steps each expands into",
+  "agents": "markdown listing the specialist subagents, each with a narrow role, the context it is given, and what it returns. Subagents are a context pressure valve as much as a specialisation: say which ones exist to keep the main context clean.",
+  "skills": "markdown for a portable SKILL.md — packaged domain knowledge loadable by Claude Code, Codex CLI, Cursor or Gemini CLI. Procedural knowledge only, not background the model already has.",
+  "executionLayer": "markdown for the typed code layer: the clients, the capability registry, and what the code enforces that a prompt cannot",
+  "stateSchema": "markdown for the state files — project config, ground truth, intermediate artifacts, final outputs, provenance. Name the files and their fields."
+}
+
+Be concrete and dense. Keep every section to a few bullet-rich paragraphs so the whole object fits the token budget.`;
+
+  const HB_CONTROLS_PROMPT = `You are a senior harness engineering architect. You have written a harness's operating layers. Now write the control layers — the parts that stop it doing the wrong thing, and the parts that make it improve.
+
+${HB_DOCTRINE}
+
+Triage rule for where a fix belongs, and apply it consistently:
+- The agent VIOLATED a known rule → a hook. Deterministic, not advisory.
+- The agent LACKED information → a skill or an MCP server.
+- The agent USED something dangerous → a permission restriction.
+
+Output strictly valid JSON matching this schema, and nothing else — no prose, no code fences:
+{
+  "mcp": "markdown on the MCP servers this harness wires in — which external systems, which tools each exposes, and what stays out of MCP because typed code does it better",
+  "hooks": "markdown on the deterministic hooks — the event each fires on (PreToolUse, PostToolUse, Stop and so on), what it checks, and the specific failure it exists to prevent",
+  "permissions": "markdown on the permission and sandbox posture — what is allowlisted, what always prompts, what is denied outright, and what the agent may never reach",
+  "evals": "markdown on the eval suite that gates changes to this harness: the regression cases, how a run is scored, and the security checks — prompt-injection resistance, timeout resilience, and whether the agent requests tools it does not need. Measure before adding autonomy.",
+  "contextBudget": "markdown on the context strategy — what is loaded eagerly versus on demand, what gets compacted and when, and which work is pushed to subagents to keep the main context clean",
+  "antiPatterns": "markdown listing 6-10 concrete anti-patterns as a living log. Each names the failure, why it happened, and the fix. These are the seeds of the rules file.",
+  "qhxLoop": "markdown on the QHX loop — Quality, Human feedback, eXecution. What gets logged after every run, who reviews it, and how the next session starts smarter than the last.",
+  "modelRouting": "markdown on model routing — which model handles which step and why, with the cheap-model-first path and the escalation trigger",
+  "mermaidDiagram": "Mermaid flowchart source (flowchart TD) of this harness: rules feeding playbooks, playbooks fanning to subagents and skills, the execution layer with its hooks and permissions, state files, and the QHX loop closing back to the rules. Short node labels, subgraphs per layer, valid Mermaid only, no code fences.",
+  "diagramPrompt": "a prompt for a text-to-image model illustrating this harness as a dark, diagrammatic infographic — layered nodes, flowing connections, deep teal ground with ember and amber accents. Abstract, no text labels, no words in the image."
+}`;
+
+  const HB_REFINE_PROMPT = `You are a senior harness engineering architect refining one layer of an existing harness. You get the whole harness as context, the layer to rewrite, and an instruction.
+
+Rewrite ONLY that layer. Stay consistent with every other layer — if the instruction would contradict one, honour the instruction and note the tension in a line at the end. Keep the same markdown shape and density.
+
+Output strictly valid JSON with exactly one key, no code fences: {"<layerKey>": "the rewritten layer"}`;
+
+  let hbState = null;
+  let hbPipeline = null;
+  let hbAbort = null;
+
+  function hbSlug() {
+    return slug((hbState && hbState.recipe && hbState.recipe.domain) || 'harness', 'harness');
+  }
+
+  function hbActiveView() {
+    const t = $('.out-tab.active[data-hb-out]');
+    return t ? t.dataset.hbOut : 'rules';
+  }
+
+  function hbRenderTabs() {
+    const strip = $('#hb-out-tabs');
+    const copyBtn = $('#hb-copy-btn');
+    if (!strip || !hbState) return;
+    const present = HB_LAYERS.filter(l => hbState.recipe[l.key]);
+    const extras = [];
+    if (hbState.recipe.mermaidDiagram) extras.push({ key: 'diagram', label: 'Diagram' });
+    if (hbState.image) extras.push({ key: 'image', label: 'Illustration' });
+    extras.push({ key: 'bundle', label: 'Bundle' });
+    extras.push({ key: 'json', label: 'JSON' });
+
+    const active = hbActiveView();
+    strip.innerHTML = present.concat(extras).map(l =>
+      `<button class="out-tab${l.key === active ? ' active' : ''}" data-hb-out="${l.key}">${esc(l.label)}</button>`
+    ).join('');
+    strip.appendChild(copyBtn);
+
+    if (!$('.out-tab.active[data-hb-out]', strip) && strip.firstElementChild) {
+      strip.firstElementChild.classList.add('active');
+    }
+
+    $$('.out-tab[data-hb-out]', strip).forEach(tab => {
+      tab.addEventListener('click', () => {
+        $$('.out-tab[data-hb-out]', strip).forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        hbRender(tab.dataset.hbOut);
+      });
+    });
+  }
+
+  function hbRender(view) {
+    const out = $('#hb-output');
+    if (!out || !hbState) return;
+    const recipe = hbState.recipe;
+    const refineBar = $('#hb-refine-bar');
+    const layer = HB_LAYERS.find(l => l.key === view);
+
+    /* Refinement only makes sense on a written layer, not on a derived view. */
+    if (refineBar) refineBar.style.display = layer ? 'block' : 'none';
+
+    if (view === 'json') {
+      out.innerHTML = `<pre class="output-pre" style="padding:0;">${esc(JSON.stringify(hbExport(), null, 2))}</pre>`;
+      return;
+    }
+
+    if (view === 'bundle') {
+      out.innerHTML = '<div class="protocol">' + hbFiles().map(f =>
+        `<div class="protocol-step"><strong>${esc(f.path)}</strong><br>${esc(f.note || '')}</div>`
+      ).join('') + '</div>';
+      return;
+    }
+
+    if (view === 'diagram') {
+      out.innerHTML = `<div id="hb-mermaid" class="mermaid-container" style="border-radius:var(--r-md);"></div>` +
+        `<details style="margin-top:16px;"><summary class="meter-note" style="cursor:pointer;">Mermaid source</summary>` +
+        `<pre class="output-pre" style="padding:12px 0 0;">${esc(recipe.mermaidDiagram || '')}</pre></details>`;
+      renderMermaidInto('hb-mermaid', recipe.mermaidDiagram || '');
+      return;
+    }
+
+    if (view === 'image') {
+      out.innerHTML = hbState.image
+        ? `<div class="visual"><div class="visual-frame" style="aspect-ratio:16/9;"><img src="${hbState.image}" alt="Harness architecture"></div>` +
+          `<div class="visual-caption"><strong>Architecture</strong>${esc(recipe.diagramPrompt || '')}</div></div>`
+        : '<p class="prose">No illustration was generated for this run.</p>';
+      return;
+    }
+
+    const value = recipe[view];
+    if (!value) { out.innerHTML = '<p class="prose">This layer has not been written yet.</p>'; return; }
+    const streaming = hbState.streaming && hbState.streaming[view];
+    out.innerHTML =
+      (layer ? `<div class="calendar-meta" style="margin-bottom:16px;"><span class="tag format">${esc(hbPath(layer))}</span>${streaming ? '<span class="tag">writing…</span>' : ''}</div>` : '') +
+      `<pre class="output-pre" style="padding:0;">${esc(value)}</pre>`;
+  }
+
+  function hbPath(layer) {
+    return layer.path.replace('{slug}', hbSlug());
+  }
+
+  async function renderMermaidInto(id, code) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (!code) { el.innerHTML = '<p class="meter-note">No diagram generated.</p>'; return; }
+    try {
+      if (window.mermaid) {
+        window.mermaid.initialize({ startOnLoad: false, theme: 'neutral' });
+        const { svg } = await window.mermaid.render(id + '-svg-' + Date.now(), code);
+        el.innerHTML = svg;
+      } else {
+        el.innerHTML = `<pre class="output-pre" style="padding:0;">${esc(code)}</pre>`;
+      }
+    } catch (err) {
+      el.innerHTML = `<pre class="output-pre" style="padding:0;">${esc(code)}</pre>`;
+    }
+  }
+
+  /* The bundle, laid out the way the repo should look on disk.
+
+     Split in two so the README can list the other files without the two
+     functions calling each other. */
+  function hbFiles() {
+    const files = hbLayerFiles();
+    files.push({ path: 'README.md', content: hbReadme(files), note: 'How to run the harness.' });
+    return files;
+  }
+
+  function hbLayerFiles() {
+    if (!hbState) return [];
+    const recipe = hbState.recipe;
+    const slugged = hbSlug();
+    const files = [];
+
+    HB_LAYERS.forEach(layer => {
+      if (!recipe[layer.key]) return;
+      files.push({
+        path: hbPath(layer),
+        content: recipe[layer.key],
+        note: layer.key === 'rules'
+          ? 'Read first by Codex CLI, Cursor, Copilot, Gemini CLI, Aider, Windsurf and Zed.'
+          : layer.label
+      });
+    });
+
+    /* Claude Code reads CLAUDE.md; point it at AGENTS.md rather than
+       duplicating the rules into a file that will drift. */
+    if (recipe.rules) {
+      files.push({
+        path: 'CLAUDE.md',
+        content: `# ${recipe.domain || 'Harness'}\n\nThe operating rules for this harness live in [AGENTS.md](./AGENTS.md). Read that first.\n\nThis file exists so Claude Code finds the rules by its own convention. Keep it a pointer — two rule files that drift apart are worse than one.\n\n## Personal overrides\n\nMachine-specific settings belong in \`CLAUDE.local.md\` (gitignored), not here.\n`,
+        note: 'Pointer to AGENTS.md, so Claude Code finds the rules without duplicating them.'
+      });
+    }
+
+    if (recipe.mermaidDiagram) {
+      files.push({ path: 'docs/architecture.mmd', content: recipe.mermaidDiagram, note: 'Architecture diagram (Mermaid source).' });
+    }
+
+    return files;
+  }
+
+  function hbReadme(files) {
+    const recipe = hbState.recipe;
+    const slugged = hbSlug();
+    let md = `# ${recipe.domain || 'Harness'}\n\n${recipe.summary || ''}\n\n`;
+    md += `## Quick start\n\n1. Open this folder in Claude Code, Codex CLI, Cursor or any agent that reads AGENTS.md.\n`;
+    md += `2. The agent reads \`AGENTS.md\` first for the operating rules.\n`;
+    md += `3. Run the playbook: \`/${slugged}\`\n`;
+    md += `4. Confirm at the gates the rules define.\n\n`;
+    md += `## Layers\n\n`;
+    files.forEach(f => { md += `- \`${f.path}\` — ${f.note}\n`; });
+    md += `- \`README.md\` — this file.\n`;
+    md += `\n## Keeping it sharp\n\nAfter every production run, log what broke in \`anti-patterns.md\`. Anything that broke twice becomes a rule in \`AGENTS.md\` or a hook in \`docs/hooks.md\`. Every rule should trace to a real failure — if you cannot name the mistake a line prevents, delete it.\n`;
+    return md;
+  }
+
+  function hbExport() {
+    if (!hbState) return {};
+    const out = {
+      generated_at: new Date().toISOString(),
+      inputs: hbState.inputs,
+      recipe: Object.assign({}, hbState.recipe),
+      files: hbFiles().map(f => ({ path: f.path, bytes: f.content.length }))
+    };
+    return out;
+  }
+
+  function hbMarkdown() {
+    const recipe = hbState.recipe;
+    let md = `# ${recipe.domain || 'Harness'}\n\n${recipe.summary || ''}\n\n`;
+    hbFiles().forEach(f => {
+      md += `---\n\n## ${f.path}\n\n_${f.note}_\n\n`;
+      md += '````markdown\n' + f.content + '\n````\n\n';
+    });
+    return md;
+  }
+
+  function hbRenderSummary() {
+    const recipe = hbState.recipe;
+    const panel = $('#hb-summary-panel');
+    if (!panel) return;
+    panel.style.display = 'block';
+    const written = HB_LAYERS.filter(l => recipe[l.key]).length;
+    $('#hb-metrics').innerHTML = `
+      <div class="metric"><div class="metric-value accent">${written}</div><div class="metric-label">Layers</div></div>
+      <div class="metric"><div class="metric-value">${hbFiles().length}</div><div class="metric-label">Files</div></div>
+      <div class="metric"><div class="metric-value">${(recipe.antiPatterns || '').split('\n').filter(l => /^\s*[-*\d]/.test(l)).length || '—'}</div><div class="metric-label">Anti-patterns</div></div>
+      <div class="metric"><div class="metric-value jade">${hbState.inputs.autonomy}</div><div class="metric-label">Autonomy</div></div>`;
+    $('#hb-summary').innerHTML =
+      `<h4>${esc(recipe.domain || 'Harness')}</h4><p>${esc(recipe.summary || '')}</p>`;
+  }
+
+  /* Fold a streamed buffer into the recipe and repaint whatever is on screen. */
+  function hbAbsorb(buffer, fields) {
+    const found = extractPartialFields(buffer, fields);
+    let changed = false;
+    hbState.streaming = hbState.streaming || {};
+
+    Object.keys(found).forEach(key => {
+      const entry = found[key];
+      if (hbState.recipe[key] !== entry.text) {
+        hbState.recipe[key] = entry.text;
+        changed = true;
+      }
+      hbState.streaming[key] = !entry.complete;
+    });
+
+    if (!changed) return;
+    hbRenderTabs();
+    if (hbState.recipe.domain || hbState.recipe.summary) hbRenderSummary();
+
+    /* Follow the layer currently being written, unless the reader has clicked
+       away to read something already finished. */
+    const view = hbActiveView();
+    if (!hbState.userPinned) {
+      const writing = Object.keys(hbState.streaming).filter(k => hbState.streaming[k]);
+      const target = writing.length ? writing[writing.length - 1] : view;
+      if (target !== view && HB_LAYERS.some(l => l.key === target)) {
+        $$('.out-tab[data-hb-out]').forEach(t => t.classList.toggle('active', t.dataset.hbOut === target));
+        hbRender(target);
+        return;
+      }
+    }
+    hbRender(view);
+  }
+
+  async function runHarness() {
+    const useCase = ($('#hb-usecase').value || '').trim();
+    if (!useCase) { toast('Describe the workflow first.'); $('#hb-usecase').focus(); return; }
+
+    const inputs = {
+      useCase: useCase,
+      stack: ($('#hb-stack').value || '').trim(),
+      autonomy: segmentedValue('hb-autonomy', 'balanced'),
+      targets: chipValues('hb-targets', 'target'),
+      diagram: $('#hb-diagram').checked,
+      image: $('#hb-image').checked,
+      model: $('#hb-model').value,
+      imageModel: $('#hb-image-model').value
+    };
+
+    const btn = $('#hb-run-btn');
+    const stopBtn = $('#hb-stop-btn');
+    const status = $('#hb-inline-status');
+    btn.disabled = true;
+    stopBtn.style.display = '';
+    status.style.display = '';
+    status.classList.add('running');
+    $('#hb-progress').textContent = 'Running';
+    hideEmpty('harness-builder');
+    pulse('harness-builder', 'live', 'Running');
+
+    $('#hb-run').style.display = 'block';
+    $('#hb-result').style.display = 'block';
+    $('#hb-summary-panel').style.display = 'none';
+    hbPipeline.reset();
+
+    const steps = HB_STEPS.map(st => Object.assign({}, st,
+      st.key === 'image' && !inputs.image ? { weight: 0.05 } : {}));
+    meterStart('harness-builder', steps);
+
+    hbState = { inputs: inputs, recipe: {}, streaming: {}, userPinned: false, image: null };
+    hbRenderTabs();
+
+    const autonomyBrief = {
+      supervised: 'The operator wants to confirm every step. Gates are frequent and explicit.',
+      balanced: 'The operator wants confirmation at meaningful gates only — irreversible actions, spend, and anything that publishes.',
+      autonomous: 'The operator wants the harness to run to completion unattended. That raises the bar on evals, permissions and rollback: say what makes unattended running safe here.'
+    }[inputs.autonomy];
+
+    const brief =
+      `USE CASE\n${useCase}\n\n` +
+      (inputs.stack ? `TOOLS AND SERVICES IT MUST DRIVE\n${inputs.stack}\n\n` : '') +
+      `AUTONOMY\n${autonomyBrief}\n\n` +
+      `TARGET HARNESSES\n${inputs.targets.join(', ') || 'Claude Code'}\n\n` +
+      `Design the harness.`;
+
+    try {
+      /* 1 — operating layers */
+      hbPipeline.set('core', 'active');
+      meterStage('harness-builder', 'core');
+      await chatStream(inputs.model, HB_CORE_PROMPT, brief,
+        { max_tokens: 9000, response_format: { type: 'json_object' } },
+        buf => hbAbsorb(buf, HB_CORE_FIELDS));
+      hbState.streaming = {};
+      hbPipeline.set('core', 'done', HB_LAYERS.filter(l => l.stage === 'core' && hbState.recipe[l.key]).length + ' layers');
+      meterDone('harness-builder', 'core');
+
+      /* 2 — control layers, given the operating layers as context */
+      hbPipeline.set('controls', 'active');
+      meterStage('harness-builder', 'controls');
+      const context = {};
+      HB_CORE_FIELDS.forEach(f => { if (hbState.recipe[f]) context[f] = hbState.recipe[f]; });
+      await chatStream(inputs.model, HB_CONTROLS_PROMPT,
+        `OPERATING LAYERS ALREADY WRITTEN\n${JSON.stringify(context)}\n\nAUTONOMY\n${autonomyBrief}\n\nWrite the control layers.`,
+        { max_tokens: 9000, response_format: { type: 'json_object' } },
+        buf => hbAbsorb(buf, HB_CONTROL_FIELDS));
+      hbState.streaming = {};
+      hbPipeline.set('controls', 'done', HB_LAYERS.filter(l => l.stage === 'controls' && hbState.recipe[l.key]).length + ' layers');
+      meterDone('harness-builder', 'controls');
+
+      if (!inputs.diagram) delete hbState.recipe.mermaidDiagram;
+
+      /* 3 — illustration */
+      if (inputs.image && hbState.recipe.diagramPrompt) {
+        hbPipeline.set('image', 'active');
+        meterStage('harness-builder', 'image');
+        try {
+          hbState.image = await generateImage(inputs.imageModel, hbState.recipe.diagramPrompt, '16:9');
+          hbPipeline.set('image', 'done', 'rendered');
+        } catch (err) {
+          hbPipeline.set('image', 'failed', 'not rendered');
+          toast('Illustration failed — the harness itself is fine.');
+        }
+        meterDone('harness-builder', 'image');
+      } else {
+        hbPipeline.set('image', 'done', 'skipped');
+        meterDone('harness-builder', 'image');
+      }
+
+      /* 4 — assemble */
+      hbPipeline.set('assemble', 'active');
+      meterStage('harness-builder', 'assemble');
+      hbRenderTabs();
+      hbRenderSummary();
+      hbRender(hbActiveView());
+      hbPipeline.set('assemble', 'done', hbFiles().length + ' files');
+      meterDone('harness-builder', 'assemble');
+
+      pulse('harness-builder', 'done', 'Complete');
+      meterFinish('harness-builder', true);
+      toast('Harness built.');
+    } catch (err) {
+      console.error('[harness-builder]', err);
+      const active = $('#hb-pipeline .pipeline-step.is-active');
+      if (active) hbPipeline.set(active.dataset.step, 'failed', 'Failed');
+      pulse('harness-builder', null, 'Failed');
+      meterFinish('harness-builder', false);
+      toast('Harness build failed: ' + err.message);
+    } finally {
+      btn.disabled = false;
+      stopBtn.style.display = 'none';
+      status.classList.remove('running');
+      status.style.display = 'none';
+      hbAbort = null;
+    }
+  }
+
+  async function refineHarnessLayer() {
+    if (!hbState || !hbState.recipe.domain) return toast('Build a harness first.');
+    const view = hbActiveView();
+    const layer = HB_LAYERS.find(l => l.key === view);
+    if (!layer) return toast('Pick a layer to refine.');
+
+    const input = $('#hb-refine-input');
+    const instruction = (input.value || '').trim();
+    if (!instruction) { toast('Say what should change.'); input.focus(); return; }
+
+    const btn = $('#hb-refine-btn');
+    btn.disabled = true;
+    const original = btn.textContent;
+    btn.textContent = 'Rewriting…';
+    pulse('harness-builder', 'live', 'Refining');
+
+    const context = Object.assign({}, hbState.recipe);
+    delete context.mermaidDiagram;
+
+    try {
+      const result = await chatJson(hbState.inputs.model,
+        HB_REFINE_PROMPT.replace('<layerKey>', layer.key),
+        `FULL HARNESS (context)\n${JSON.stringify(context, null, 2)}\n\nLAYER TO REWRITE\n"${layer.key}"\n\nINSTRUCTION\n${instruction}`,
+        { max_tokens: 6000, temperature: 0.6 });
+
+      const value = result && result[layer.key];
+      if (typeof value !== 'string' || !value.trim()) {
+        throw new Error('The model did not return the rewritten layer.');
+      }
+      hbState.recipe[layer.key] = value;
+      hbRender(layer.key);
+      hbRenderSummary();
+      input.value = '';
+      toast(layer.label + ' rewritten.');
+    } catch (err) {
+      console.error('[harness-refine]', err);
+      toast('Refine failed: ' + err.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = original;
+      pulse('harness-builder', 'done', 'Complete');
+    }
+  }
+
+  async function downloadHarnessZip() {
+    if (!hbState || !hbState.recipe.domain) return toast('Build a harness first.');
+    const files = hbFiles().map(f => ({ path: f.path, content: f.content }));
+    try {
+      const res = await fetch('/api/harness-bundle', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: hbSlug(), files: files })
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => null);
+        throw new Error((err && err.error) || ('Bundle endpoint returned ' + res.status));
+      }
+      const blob = await res.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = hbSlug() + '-harness.zip';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+      toast('Harness downloaded.');
+    } catch (err) {
+      console.error('[harness-zip]', err);
+      /* The zip needs the Node server; fall back to the markdown bundle so a
+         static deploy still hands the operator every file. */
+      toast('Zip unavailable — downloading Markdown instead.');
+      download(hbSlug() + '-harness.md', hbMarkdown(), 'text/markdown');
+    }
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════
+     AGENT RULES
+
+     AGENTS.md is the open standard and is read natively by Codex CLI,
+     Cursor, Copilot, Gemini CLI, Aider, Windsurf and Zed. Everything else
+     here is a harness-native variant derived from the same source, so the
+     repo cannot end up with two sets of rules that disagree.
+     ══════════════════════════════════════════════════════════════════════ */
+
+  const AR_STEPS = [
+    { key: 'analyse', label: 'Read the project brief',   weight: 1 },
+    { key: 'author',  label: 'Author the AGENTS.md',     weight: 1.8 },
+    { key: 'derive',  label: 'Derive harness variants',  weight: 0.3 }
+  ];
+
+  /* path      — where the file belongs in the repo
+     reads     — true when the harness already reads AGENTS.md unmodified
+     transform — builds the file body from the spec and the canonical body */
+  const HARNESSES = {
+    agents: {
+      name: 'AGENTS.md',
+      tool: 'Open standard',
+      path: 'AGENTS.md',
+      note: 'Repo root. Codex CLI, Cursor, Copilot, Gemini CLI, Aider, Windsurf and Zed all read this natively. A deeper AGENTS.md in a subdirectory overrides the one above it.',
+      transform: (spec, body) => body
+    },
+    claude: {
+      name: 'CLAUDE.md',
+      tool: 'Claude Code',
+      path: 'CLAUDE.md',
+      note: 'Repo root. Claude Code layers three files: ~/.claude/CLAUDE.md for personal defaults, ./CLAUDE.md committed for the team, and ./CLAUDE.local.md gitignored for your own overrides.',
+      transform: (spec, body) => body + claudeAddendum(spec)
+    },
+    cursor: {
+      name: 'project-rules.mdc',
+      tool: 'Cursor',
+      path: '.cursor/rules/project-rules.mdc',
+      note: 'Project rules live in .cursor/rules/ and must use the .mdc extension. alwaysApply:true keeps the stack and layout in context; add sibling files with narrower globs for area-specific rules.',
+      transform: (spec, body) => cursorFrontmatter(spec) + body
+    },
+    copilot: {
+      name: 'copilot-instructions.md',
+      tool: 'GitHub Copilot',
+      path: '.github/copilot-instructions.md',
+      note: 'Copilot reads this from .github/ across the editor and the coding agent.',
+      transform: (spec, body) => body
+    },
+    gemini: {
+      name: 'GEMINI.md',
+      tool: 'Gemini CLI',
+      path: 'GEMINI.md',
+      note: 'Repo root. Gemini CLI reads AGENTS.md too — add this only if you want Gemini-specific guidance that the other harnesses should not see.',
+      transform: (spec, body) => body
+    },
+    windsurf: {
+      name: 'project-rules.md',
+      tool: 'Windsurf',
+      path: '.windsurf/rules/project-rules.md',
+      note: 'Windsurf reads rule files from .windsurf/rules/.',
+      transform: (spec, body) => body
+    },
+    aider: {
+      name: 'CONVENTIONS.md',
+      tool: 'Aider',
+      path: 'CONVENTIONS.md',
+      note: 'Repo root. Load it with `aider --read CONVENTIONS.md`, or add it to .aider.conf.yml so every session picks it up.',
+      transform: (spec, body) => body
+    }
+  };
+
+  function cursorFrontmatter(spec) {
+    return [
+      '---',
+      `description: ${(spec.summary || 'Project-wide conventions and commands.').replace(/\n/g, ' ')}`,
+      'globs:',
+      'alwaysApply: true',
+      '---',
+      '',
+      ''
+    ].join('\n');
+  }
+
+  function claudeAddendum(spec) {
+    const lines = ['', '', '## Memory layering', '',
+      'This file is the team-wide layer. Personal preferences belong in',
+      '`~/.claude/CLAUDE.md`; machine-specific overrides belong in',
+      '`./CLAUDE.local.md`, which should stay gitignored.'];
+    if (spec.directory_notes && spec.directory_notes.length) {
+      lines.push('', '## Directory notes', '');
+      spec.directory_notes.forEach(d => lines.push(`- \`${d.path}\` — ${d.note}`));
+    }
+    return lines.join('\n');
+  }
+
+  const AR_ANALYST = `You are a Repository Rules Analyst. You read a project brief and turn it into the structured facts a coding agent needs before it is allowed to change anything.
+
+What separates a rules file that works from one that gets ignored:
+- EXACT COMMANDS. "Run the tests" is useless. "pnpm test --run" is not. Never invent a command that was not given to you; if a command is missing, leave it out rather than guessing at a script name.
+- GUARDRAILS THAT NAME PATHS. "Be careful with payments" is decoration. "Never edit db/migrations by hand — generate them with pnpm db:migrate" is enforceable.
+- NON-OBVIOUS ONLY. The agent already knows how TypeScript works. It does not know that your /v1 routes are frozen.
+- NO INVENTED FACTS. If the brief does not say what the CI does, say nothing about CI.
+
+Respond with ONLY this JSON object, no prose and no code fences:
+{
+  "project": "the repo name",
+  "summary": "one sentence an agent could read to know what this codebase is",
+  "stack": [""],
+  "commands": [{"label":"setup|build|test|lint|run|other", "command":"", "when":"when an agent should run it"}],
+  "conventions": [{"rule":"", "why":""}],
+  "guardrails": [{"rule":"", "scope":"the path or area it applies to"}],
+  "architecture_notes": ["things about the layout that are not obvious from the file tree"],
+  "directory_notes": [{"path":"", "note":""}],
+  "pr_rules": ["what must be true before a change is proposed"],
+  "open_questions": ["anything the brief left ambiguous that a human should fill in"]
+}`;
+
+  const AR_AUTHOR = `You are writing the AGENTS.md for a repository — the file every coding agent reads before touching the code.
+
+Format rules:
+- Plain Markdown. No YAML frontmatter, no HTML.
+- Open with an H1 naming the project, then one or two sentences on what it is.
+- Use these H2 sections, and omit any section you have no real content for: Setup, Commands, Architecture, Conventions, Guardrails, Pull requests.
+- Put commands in fenced bash blocks, one command per line, exactly as given.
+- Write in the imperative, addressed to the agent. "Run", "Never", "Prefer".
+- Be short. A rules file nobody reads to the end is a rules file that does not work. Aim well under 150 lines.
+- Include nothing that was not in the spec. No invented commands, no invented CI, no filler like "write clean code".
+
+Return ONLY the Markdown file content — no commentary, no code fence around the whole thing.`;
+
+  let arState = null;
+  let arPipeline = null;
+
+  function arSelectedHarnesses() {
+    const picked = chipValues('ar-harnesses', 'harness');
+    /* AGENTS.md is the source every variant is derived from, so it is always
+       generated even when the user only asked for a native format. */
+    return picked.indexOf('agents') === -1 ? ['agents'].concat(picked) : picked;
+  }
+
+  function arRenderTabs() {
+    const strip = $('#ar-out-tabs');
+    const copyBtn = $('#ar-copy-btn');
+    if (!strip || !arState) return;
+    const keys = arState.harnesses;
+    strip.innerHTML = keys.map((k, i) =>
+      `<button class="out-tab${i === 0 ? ' active' : ''}" data-ar-out="${k}">${esc(HARNESSES[k].name)}</button>`
+    ).join('') + `<button class="out-tab" data-ar-out="install">Install</button>` +
+      `<button class="out-tab" data-ar-out="json">JSON</button>`;
+    strip.appendChild(copyBtn);
+
+    $$('.out-tab[data-ar-out]', strip).forEach(tab => {
+      tab.addEventListener('click', () => {
+        $$('.out-tab[data-ar-out]', strip).forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        arRender(tab.dataset.arOut);
+      });
+    });
+  }
+
+  function activeArView() {
+    const t = $('.out-tab.active[data-ar-out]');
+    return t ? t.dataset.arOut : (arState ? arState.harnesses[0] : 'agents');
+  }
+
+  function arRender(view) {
+    const out = $('#ar-output');
+    if (!out || !arState) return;
+
+    if (view === 'json') {
+      out.innerHTML = `<pre class="output-pre" style="padding:0;">${esc(JSON.stringify(arExport(), null, 2))}</pre>`;
+      return;
+    }
+
+    if (view === 'install') {
+      out.innerHTML = '<div class="protocol">' + arState.harnesses.map(k => {
+        const h = HARNESSES[k];
+        return `<div class="protocol-step"><strong>${esc(h.tool)}</strong> — write to <code>${esc(h.path)}</code><br>${esc(h.note)}</div>`;
+      }).join('') + '</div>' +
+      `<div class="prose" style="margin-top:20px;"><h4>Keeping them in sync</h4><p>Every file here is derived from the same spec. When the project changes, regenerate rather than hand-editing one file — two rules files that disagree are worse than one that is slightly out of date.</p></div>`;
+      return;
+    }
+
+    const file = arState.files[view];
+    if (!file) { out.innerHTML = '<p class="prose">Nothing generated for that harness.</p>'; return; }
+    out.innerHTML =
+      `<div class="calendar-meta" style="margin-bottom:16px;"><span class="tag format">${esc(HARNESSES[view].path)}</span><span class="tag">${esc(HARNESSES[view].tool)}</span></div>` +
+      `<pre class="output-pre" style="padding:0;">${esc(file)}</pre>`;
+  }
+
+  function arExport() {
+    if (!arState) return {};
+    return {
+      generated_at: new Date().toISOString(),
+      inputs: arState.inputs,
+      spec: arState.spec,
+      files: arState.harnesses.map(k => ({
+        harness: HARNESSES[k].tool,
+        path: HARNESSES[k].path,
+        content: arState.files[k]
+      }))
+    };
+  }
+
+  /* One download carrying every file, each under its real repo path. */
+  function arBundle() {
+    let md = `# Agent rules for ${arState.spec.project || arState.inputs.name}\n\n`;
+    md += `Generated ${new Date().toISOString().split('T')[0]}. Write each block to the path in its heading.\n\n`;
+    arState.harnesses.forEach(k => {
+      const h = HARNESSES[k];
+      md += `---\n\n## ${h.path}\n\n_${h.tool} — ${h.note}_\n\n`;
+      md += '````markdown\n' + arState.files[k] + '\n````\n\n';
+    });
+    if (arState.spec.open_questions && arState.spec.open_questions.length) {
+      md += `---\n\n## Left for a human\n\n`;
+      arState.spec.open_questions.forEach(q => { md += `- ${q}\n`; });
+    }
+    return md;
+  }
+
+  function arRenderSummary() {
+    const spec = arState.spec || {};
+    const panel = $('#ar-summary-panel');
+    if (!panel) return;
+    panel.style.display = 'block';
+    $('#ar-metrics').innerHTML = `
+      <div class="metric"><div class="metric-value accent">${(spec.commands || []).length}</div><div class="metric-label">Commands</div></div>
+      <div class="metric"><div class="metric-value">${(spec.conventions || []).length}</div><div class="metric-label">Conventions</div></div>
+      <div class="metric"><div class="metric-value">${(spec.guardrails || []).length}</div><div class="metric-label">Guardrails</div></div>
+      <div class="metric"><div class="metric-value jade">${arState.harnesses.length}</div><div class="metric-label">Files</div></div>`;
+
+    let h = `<h4>${esc(spec.project || arState.inputs.name)}</h4><p>${esc(spec.summary || '')}</p>`;
+    if (spec.open_questions && spec.open_questions.length) {
+      h += `<h4>Left for a human</h4><ul>` +
+        spec.open_questions.map(q => `<li>${esc(q)}</li>`).join('') + `</ul>`;
+    }
+    $('#ar-summary').innerHTML = h;
+  }
+
+  async function runAgentRules() {
+    const description = ($('#ar-description').value || '').trim();
+    if (!description) { toast('Describe the project first.'); $('#ar-description').focus(); return; }
+
+    const inputs = {
+      name: ($('#ar-name').value || '').trim() || 'this repository',
+      description: description,
+      stack: ($('#ar-stack').value || '').trim(),
+      commands: ($('#ar-commands').value || '').trim(),
+      conventions: ($('#ar-conventions').value || '').trim(),
+      harnesses: arSelectedHarnesses(),
+      model: $('#ar-model').value
+    };
+
+    const btn = $('#ar-run-btn');
+    const status = $('#ar-inline-status');
+    btn.disabled = true;
+    status.style.display = '';
+    status.classList.add('running');
+    $('#ar-progress').textContent = 'Running';
+    hideEmpty('agent-rules');
+    pulse('agent-rules', 'live', 'Running');
+
+    $('#ar-run').style.display = 'block';
+    $('#ar-result').style.display = 'none';
+    $('#ar-summary-panel').style.display = 'none';
+    arPipeline.reset();
+    meterStart('agent-rules', AR_STEPS);
+    arState = { inputs: inputs, harnesses: inputs.harnesses, files: {} };
+
+    const brief =
+      `PROJECT\n${inputs.name}\n\n` +
+      `BRIEF\n${inputs.description}\n\n` +
+      (inputs.stack ? `STACK\n${inputs.stack}\n\n` : '') +
+      (inputs.commands ? `COMMANDS GIVEN (use these verbatim, invent none)\n${inputs.commands}\n\n` : 'COMMANDS GIVEN\nnone — omit the Commands section entirely\n\n') +
+      (inputs.conventions ? `HOUSE RULES\n${inputs.conventions}\n\n` : '') +
+      `Extract the spec.`;
+
+    try {
+      arPipeline.set('analyse', 'active');
+      meterStage('agent-rules', 'analyse');
+      arState.spec = await chatJson(inputs.model, AR_ANALYST, brief, { max_tokens: 4000, temperature: 0.4 });
+      arPipeline.set('analyse', 'done', (arState.spec.commands || []).length + ' commands');
+      meterDone('agent-rules', 'analyse');
+      arRenderSummary();
+
+      arPipeline.set('author', 'active');
+      meterStage('agent-rules', 'author');
+      let body = await chat(inputs.model, AR_AUTHOR,
+        `SPEC\n${JSON.stringify(arState.spec)}\n\nWrite the AGENTS.md.`,
+        { max_tokens: 4000, temperature: 0.5 });
+      /* Models like to wrap a whole document in a fence despite being asked not to. */
+      body = body.replace(/^\s*```(?:markdown|md)?\s*\n/i, '').replace(/\n```\s*$/i, '').trim();
+      arPipeline.set('author', 'done', body.split('\n').length + ' lines');
+      meterDone('agent-rules', 'author');
+
+      arPipeline.set('derive', 'active');
+      meterStage('agent-rules', 'derive');
+      arState.harnesses.forEach(k => {
+        arState.files[k] = HARNESSES[k].transform(arState.spec, body);
+      });
+      arRenderTabs();
+      $('#ar-result').style.display = 'block';
+      arRender(arState.harnesses[0]);
+      arPipeline.set('derive', 'done', arState.harnesses.length + ' files');
+      meterDone('agent-rules', 'derive');
+
+      pulse('agent-rules', 'done', 'Complete');
+      meterFinish('agent-rules', true);
+      toast('Agent rules written.');
+    } catch (err) {
+      console.error('[agent-rules]', err);
+      const active = $('#ar-pipeline .pipeline-step.is-active');
+      if (active) arPipeline.set(active.dataset.step, 'failed', 'Failed');
+      pulse('agent-rules', null, 'Failed');
+      meterFinish('agent-rules', false);
+      toast('Agent rules failed: ' + err.message);
+    } finally {
+      btn.disabled = false;
+      status.classList.remove('running');
+      status.style.display = 'none';
+    }
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════
      BOOT
      ══════════════════════════════════════════════════════════════════════ */
 
@@ -1191,6 +2176,81 @@ Respond with ONLY this JSON object, no prose and no code fences:
       if (!clState) return toast('Compile a content loop first.');
       download(slug((clState.strategy || {}).engine_name, 'content-loop') + '.json',
         JSON.stringify(clExport(), null, 2), 'application/json');
+      toast('JSON downloaded.');
+    });
+
+    /* Harness Builder */
+    hbPipeline = new Pipeline('hb-pipeline', HB_STEPS);
+    wireChips('hb-targets', true);
+    wireSegmented('hb-autonomy');
+    $('#hb-run-btn').addEventListener('click', runHarness);
+    $('#hb-regenerate').addEventListener('click', runHarness);
+    $('#hb-refine-btn').addEventListener('click', refineHarnessLayer);
+    $('#hb-refine-input').addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); refineHarnessLayer(); }
+    });
+
+    /* Clicking a tab mid-stream means the reader wants to stay put. */
+    $('#hb-out-tabs').addEventListener('click', e => {
+      if (e.target.closest('.out-tab')) hbState && (hbState.userPinned = true);
+    });
+
+    const hbImageToggle = $('#hb-image');
+    if (hbImageToggle) {
+      const syncImageModel = () => {
+        $('#hb-image-model-group').style.display = hbImageToggle.checked ? '' : 'none';
+      };
+      hbImageToggle.addEventListener('change', syncImageModel);
+      syncImageModel();
+    }
+
+    $('#hb-copy-btn').addEventListener('click', function () {
+      if (!hbState) return toast('Build a harness first.');
+      const view = hbActiveView();
+      if (view === 'json') return copyText(JSON.stringify(hbExport(), null, 2), this);
+      if (view === 'bundle') return copyText(hbMarkdown(), this);
+      if (view === 'diagram') return copyText(hbState.recipe.mermaidDiagram || '', this);
+      copyText(hbState.recipe[view] || '', this);
+    });
+
+    $('#hb-download-zip').addEventListener('click', downloadHarnessZip);
+
+    $('#hb-download-md').addEventListener('click', () => {
+      if (!hbState || !hbState.recipe.domain) return toast('Build a harness first.');
+      download(hbSlug() + '-harness.md', hbMarkdown(), 'text/markdown');
+      toast('Markdown downloaded.');
+    });
+
+    $('#hb-download-json').addEventListener('click', () => {
+      if (!hbState || !hbState.recipe.domain) return toast('Build a harness first.');
+      download(hbSlug() + '-harness.json', JSON.stringify(hbExport(), null, 2), 'application/json');
+      toast('JSON downloaded.');
+    });
+
+    /* Agent Rules */
+    arPipeline = new Pipeline('ar-pipeline', AR_STEPS);
+    wireChips('ar-harnesses', true);
+    $('#ar-run-btn').addEventListener('click', runAgentRules);
+    $('#ar-regenerate').addEventListener('click', runAgentRules);
+
+    $('#ar-copy-btn').addEventListener('click', function () {
+      if (!arState) return toast('Write the rules first.');
+      const view = activeArView();
+      if (view === 'json') return copyText(JSON.stringify(arExport(), null, 2), this);
+      if (view === 'install') return copyText(arBundle(), this);
+      copyText(arState.files[view] || '', this);
+    });
+
+    $('#ar-download-bundle').addEventListener('click', () => {
+      if (!arState) return toast('Write the rules first.');
+      download(slug((arState.spec || {}).project, 'agent-rules') + '-rules.md', arBundle(), 'text/markdown');
+      toast('Rule files downloaded.');
+    });
+
+    $('#ar-download-json').addEventListener('click', () => {
+      if (!arState) return toast('Write the rules first.');
+      download(slug((arState.spec || {}).project, 'agent-rules') + '-rules.json',
+        JSON.stringify(arExport(), null, 2), 'application/json');
       toast('JSON downloaded.');
     });
 

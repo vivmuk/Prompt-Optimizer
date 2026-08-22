@@ -238,7 +238,7 @@ Apply ALL of the following techniques:
 
 1. **ROLE ASSIGNMENT**: Open with a precise expert persona (e.g., "You are a senior software engineer with 15 years of experience in...").
 2. **XML STRUCTURE**: Wrap distinct sections in semantic XML tags. Use tags like <context>, <task>, <requirements>, <constraints>, <examples>, <output_format>, <thinking> as appropriate.
-3. **CHAIN-OF-THOUGHT**: For analytical or multi-step tasks, instruct Claude to reason before answering (e.g., "Think through this step by step inside <thinking> tags before providing your response").
+3. **REASONING**: Do not instruct the model to "think step by step" — Claude's reasoning models already do, and the nudge makes them worse. Give the success criteria and the constraints instead. Reserve an explicit <thinking> section for tasks where the order of work is genuinely non-obvious.
 4. **SPECIFICITY**: Replace vague words with precise, measurable instructions. "Good code" → "production-ready, PEP-8 compliant Python with docstrings and error handling".
 5. **OUTPUT FORMAT**: Explicitly define the structure, length, tone, and format of the desired response.
 6. **POSITIVE + NEGATIVE CONSTRAINTS**: State both what to DO and what to AVOID.
@@ -260,7 +260,7 @@ Apply ALL of the following techniques:
 
 Additional techniques:
 1. **MULTIMODAL AWARENESS**: Note if images, diagrams, or structured data would enhance the response.
-2. **EXPLICIT REASONING**: Add "First, reason through the problem, then provide your answer."
+2. **REASONING**: Skip "first reason, then answer" — Gemini's thinking models handle that themselves. State what a correct answer must contain, and ask the model to flag any assumption it had to make.
 3. **GROUNDING INSTRUCTIONS**: For factual tasks, specify "cite sources" or "note confidence level."
 4. **VERBOSITY CALIBRATION**: Specify the ideal response length (brief/detailed/comprehensive).`;
 
@@ -272,7 +272,7 @@ Apply ALL of the following techniques:
 1. **SYSTEM + USER SPLIT**: Structure the output as a clearly delineated System Message followed by a User Message.
    - System Message: Define the AI's persona, expertise, rules, and output format
    - User Message: The specific request with context and constraints
-2. **CHAIN-OF-THOUGHT (CoT)**: For reasoning tasks, add "Let's think step by step." or "Work through this systematically before answering."
+2. **REASONING**: Do NOT bolt on "let's think step by step" — current reasoning models do that natively and the instruction degrades them. Instead give the model the success criteria and the constraints it must satisfy, and ask it to state its assumptions. Only spell out an explicit procedure when the task has a genuinely non-obvious order of operations.
 3. **MARKDOWN STRUCTURE**: Use ## headers, bullet lists, and code blocks to organize complex prompts.
 4. **DELIMITERS**: Use triple backticks \`\`\`, triple quotes """, or XML tags to clearly separate inputs from instructions.
 5. **ROLE + PERSONA**: Open with a concrete expert role (e.g., "You are a senior data scientist at a Fortune 500 company...").
@@ -770,7 +770,9 @@ Wrap the response in a JSON code block.`;
             // Step 1: Generate SKILL.md content
             statusEl.textContent = 'Generating SKILL.md content...';
 
-            const skillMdPrompt = `You are an expert at creating Anthropic Agent Skills. Generate a complete SKILL.md file.
+            const skillMdPrompt = `You are an expert at creating Agent Skills. Generate a complete SKILL.md file.
+
+SKILL.md follows the Agent Skills open standard: the same folder is loaded by Claude Code, Codex CLI, Cursor, Gemini CLI and other harnesses. Write for any capable coding agent, not for one vendor — never name a specific assistant in the skill body, and never assume a tool that only one harness provides.
 
 SKILL.md Structure:
 1. YAML Frontmatter:
@@ -779,7 +781,7 @@ name: skill-name
 description: When to use this skill and what it does
 ---
 
-2. Markdown Body with instructions for Claude/AI agents:
+2. Markdown Body with instructions for the agent:
 - Overview (1-2 sentences)
 - Main workflow or capabilities
 - Step-by-step procedures
@@ -789,7 +791,7 @@ description: When to use this skill and what it does
 Guidelines:
 - Keep under 500 lines (progressive disclosure - put detailed info in references/)
 - Write in imperative form ("Read the file", "Parse the data")
-- Claude already knows a lot - only include non-obvious procedural knowledge
+- The agent already knows the language and the ecosystem - include only non-obvious procedural knowledge
 - Be specific and actionable
 - For ${selectedSkillType} skills, focus on:
   ${selectedSkillType === 'workflow' ? '- Step-by-step processes\n  - Decision points\n  - Error handling' : ''}
@@ -831,7 +833,7 @@ Return ONLY the complete SKILL.md content (frontmatter + body), no additional te
             if (includeScripts) {
                 statusEl.textContent = 'Generating scripts...';
 
-                const scriptsPrompt = `Generate Python/Bash scripts for this Anthropic Skill.
+                const scriptsPrompt = `Generate Python/Bash scripts for this Agent Skill.
 
 Skill: ${name}
 Description: ${description}

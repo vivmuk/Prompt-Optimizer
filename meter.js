@@ -129,6 +129,8 @@
     'optimizer':        { calls: 1, inTok: 1100, outTok: 800 },
     'agent-builder':    { calls: 1, inTok: 700,  outTok: 1400 },
     'anthropic-skills': { calls: 2, inTok: 2400, outTok: 4200 },
+    'agent-rules':      { calls: 2, inTok: 3000, outTok: 2600 },
+    'harness-builder':  { calls: 2, inTok: 4200, outTok: 11000 },
     'plugin-builder':   { calls: 5, inTok: 4000, outTok: 4500 },
     'loop-design':      { calls: 2, inTok: 4200, outTok: 5000 },
     'content-loop':     { calls: 3, inTok: 5200, outTok: 7000 },
@@ -140,11 +142,15 @@
   const TAB_MODEL_SELECT = {
     'optimizer':        '#model-select',
     'agent-builder':    '#agent-model-select',
-    'anthropic-skills': null,                    // uses whatever app.js defaults to
+    /* app.js hardcodes this model for skill generation rather than reading a
+       picker, so the estimate has to name it explicitly. */
+    'anthropic-skills': { fixed: 'zai-org-glm-4.7' },
     'plugin-builder':   '#plugin-model-select',
     'loop-design':      '#loop-model-select',
     'content-loop':     '#cl-model',
-    'gauntlet-loop':    '#gl-model'
+    'gauntlet-loop':    '#gl-model',
+    'agent-rules':      '#ar-model',
+    'harness-builder':  '#hb-model'
   };
 
   /* ── Cost ledger ────────────────────────────────────────────────────────
@@ -518,7 +524,11 @@
 
   function selectedModelFor(tabId) {
     const sel = TAB_MODEL_SELECT[tabId];
-    const el = sel ? $(sel) : null;
+    /* Must test the type, not just truthiness of .fixed — every String
+       carries a legacy String.prototype.fixed method, so a plain selector
+       string would otherwise resolve to that function. */
+    if (sel && typeof sel === 'object') return sel.fixed || null;
+    const el = (typeof sel === 'string') ? $(sel) : null;
     if (el && el.value) return el.value;
     /* Tabs without their own picker follow the Optimizer's model, which is
        what app.js sends for them. */
@@ -532,6 +542,15 @@
     if (!profile || !model) return null;
     let est = priceText(model, profile.inTok, profile.outTok);
     if (est == null) return null;
+
+    if (tabId === 'harness-builder') {
+      const on = $('#hb-image');
+      const imgModel = $('#hb-image-model');
+      if (on && on.checked && imgModel) {
+        const img = priceImage(imgModel.value, 1, '1K');
+        if (img != null) est += img;
+      }
+    }
 
     /* Content Loop also spends on images when visuals are switched on. */
     if (tabId === 'content-loop') {
@@ -552,21 +571,25 @@
   }
 
   function watchModelPickers() {
-    const ids = new Set(Object.values(TAB_MODEL_SELECT).filter(Boolean).concat(['#model-select']));
+    const ids = new Set(Object.values(TAB_MODEL_SELECT)
+      .filter(v => typeof v === 'string').concat(['#model-select']));
+
     ids.forEach(sel => {
       const el = $(sel);
-      if (el) el.addEventListener('change', refreshAllEstimates);
+      if (!el) return;
+      el.addEventListener('change', refreshAllEstimates);
+      /* Every picker is filled asynchronously — app.js repopulates its own
+         once the catalogue lands, generators.js fills the newer tabs' — and a
+         programmatic fill raises no change event. Watch the options instead,
+         or a tab whose picker is still empty when pricing resolves would show
+         a dash forever. */
+      new MutationObserver(refreshAllEstimates).observe(el, { childList: true });
     });
-    ['#cl-visuals', '#cl-image-model'].forEach(sel => {
+
+    ['#cl-visuals', '#cl-image-model', '#hb-image', '#hb-image-model'].forEach(sel => {
       const el = $(sel);
       if (el) el.addEventListener('change', refreshAllEstimates);
     });
-    /* app.js repopulates the pickers once the live catalogue lands. */
-    const optimizerSelect = $('#model-select');
-    if (optimizerSelect) {
-      new MutationObserver(refreshAllEstimates)
-        .observe(optimizerSelect, { childList: true });
-    }
   }
 
   /* ── Boot ───────────────────────────────────────────────────────────── */
