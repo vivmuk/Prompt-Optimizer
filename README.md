@@ -133,6 +133,18 @@ Site settings → Environment variables. Note that the `/api/*` proxy routes are
 served by `server.js`; a static Netlify deploy needs equivalent functions for
 chat, models and image generation.
 
+## Models
+
+Every generator picks from the **live Venice catalogue** — nothing is pinned in
+code. On load the app fetches `/api/models?type=text` and `?type=image` and
+fills all twelve pickers from the result, labelled with each model's published
+name rather than its slug, with `(beta)` marked. Models flagged `offline` are
+dropped: they appear in the catalogue but cannot serve a request, so listing
+them only buys a failed run.
+
+Your selection survives a catalogue refresh. Hardcoded lists remain only as a
+fallback for when the proxy is unreachable.
+
 ## Progress and cost
 
 Every generator carries a run meter under its orchestration header.
@@ -153,6 +165,10 @@ emit, and their own status lines drive the bar's label.
 - During and after a run, the estimate is replaced by the real figure. `meter.js`
   instruments `fetch`, reads the `usage` block off every completion, and prices
   it — which is how cost works on the older tabs without modifying them.
+  Streamed completions are metered too: the event stream is drained on a clone
+  and the trailing usage frame read from it, which the Harness Builder requests
+  via `stream_options.include_usage`. A stream that reports no usage is still
+  recorded, marked unpriced rather than silently dropped.
 - Clicking the cost chip opens a per-call breakdown: model, tokens in and out,
   cached tokens, latency, and USD per call.
 
@@ -168,7 +184,7 @@ Models Venice publishes no rate for are marked unpriced rather than guessed at.
 | Route | Purpose |
 | --- | --- |
 | `GET /api/health` | Reports whether `VENICE_API_KEY` is present (never returns the key). |
-| `GET /api/models` | Venice model catalogue, used to populate every model dropdown. |
+| `GET /api/models` | Venice model catalogue, used to populate every model dropdown. Accepts `?type=` (`text`, `image`, …) and forwards it to Venice. |
 | `POST /api/chat` | Chat completions proxy. Pass `stream: true` and Venice's server-sent events are piped straight through. |
 | `POST /api/image` | Image generation proxy (`/image/generate`). Requires `model` and `prompt`. |
 | `POST /api/harness-bundle` | Zips a harness into a repo-shaped `.zip`. Entries are confined to the bundle root. |

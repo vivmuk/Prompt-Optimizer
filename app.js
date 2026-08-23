@@ -52,6 +52,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const anthropicSkillStructure = document.getElementById('anthropic-skill-structure');
     const anthropicInlineStatus = document.getElementById('anthropic-inline-status'); // NEW
     const anthropicProgress = document.getElementById('anthropic-progress'); // Ensure this ID selector exists for new logic
+    const anthropicModelSelect = document.getElementById('anthropic-model-select');
+
+    // Skill generation used to pin one model id. Read the picker instead, so
+    // any model the Venice catalogue offers can author a skill.
+    function selectedSkillModel() {
+        return (anthropicModelSelect && anthropicModelSelect.value) || 'zai-org-glm-4.7';
+    }
 
     let currentAnthropicSkill = null; // Store generated Anthropic skill
 
@@ -59,7 +66,9 @@ document.addEventListener('DOMContentLoaded', () => {
     async function loadVeniceModels() {
         try {
             console.log('Fetching Venice models...');
-            const response = await fetch('/api/models');
+            // Ask for the text catalogue specifically; the unfiltered list also
+            // carries image, audio and embedding models that cannot answer a chat.
+            const response = await fetch('/api/models?type=text');
 
             if (!response.ok) {
                 throw new Error(`Failed to fetch models: ${response.status}`);
@@ -68,8 +77,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await response.json();
 
             if (data && data.data && Array.isArray(data.data)) {
-                loadedModels = data.data;
-                console.log(`Loaded ${loadedModels.length} Venice models`);
+                // An offline model is listed but cannot serve a request, so
+                // offering it only buys the user a failed run.
+                const usable = data.data.filter(m => !(m.model_spec && m.model_spec.offline));
+                loadedModels = usable.length ? usable : data.data;
+                console.log(`Loaded ${loadedModels.length} Venice text models`);
 
                 // Populate model dropdowns with fetched models
                 populateModelDropdowns();
@@ -105,21 +117,26 @@ document.addEventListener('DOMContentLoaded', () => {
         agentModelSelect.innerHTML = '';
         answerModelSelect.innerHTML = ''; // Clear new dropdown
 
+        // The readable name lives on model_spec; falling back to the id alone
+        // leaves the dropdowns showing raw slugs.
+        const labelFor = (model) =>
+            (model.model_spec && model.model_spec.name) || model.name || model.id;
+
         // Populate both dropdowns with fetched models
         loadedModels.forEach(model => {
             const optionForOptimizer = document.createElement('option');
             optionForOptimizer.value = model.id;
-            optionForOptimizer.textContent = model.name || model.id;
+            optionForOptimizer.textContent = labelFor(model);
             modelSelect.appendChild(optionForOptimizer);
 
             const optionForAgent = document.createElement('option');
             optionForAgent.value = model.id;
-            optionForAgent.textContent = model.name || model.id;
+            optionForAgent.textContent = labelFor(model);
             agentModelSelect.appendChild(optionForAgent);
 
             const optionForAnswer = document.createElement('option');
             optionForAnswer.value = model.id;
-            optionForAnswer.textContent = model.name || model.id;
+            optionForAnswer.textContent = labelFor(model);
             answerModelSelect.appendChild(optionForAnswer);
         });
 
@@ -664,7 +681,7 @@ Return a JSON object with this structure:
 Wrap the response in a JSON code block.`;
 
             const response = await callApi('/api/chat', {
-                model: "zai-org-glm-4.7",
+                model: selectedSkillModel(),
                 venice_parameters: {
                     include_venice_system_prompt: true,
                     enable_web_search: "off"
@@ -810,7 +827,7 @@ Include Assets: ${includeAssets}
 Return ONLY the complete SKILL.md content (frontmatter + body), no additional text or explanation.`;
 
             const skillMdResponse = await callApi('/api/chat', {
-                model: "zai-org-glm-4.7",
+                model: selectedSkillModel(),
                 venice_parameters: {
                     include_venice_system_prompt: true,
                     enable_web_search: "off"
@@ -859,7 +876,7 @@ Guidelines:
 Wrap the response in a JSON code block.`;
 
                 const scriptsResponse = await callApi('/api/chat', {
-                    model: "zai-org-glm-4.7",
+                    model: selectedSkillModel(),
                     venice_parameters: {
                         include_venice_system_prompt: true,
                         enable_web_search: "off"
@@ -913,7 +930,7 @@ Guidelines:
 Wrap the response in a JSON code block.`;
 
                 const referencesResponse = await callApi('/api/chat', {
-                    model: "zai-org-glm-4.7",
+                    model: selectedSkillModel(),
                     venice_parameters: {
                         include_venice_system_prompt: true,
                         enable_web_search: "off"
