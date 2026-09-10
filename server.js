@@ -65,7 +65,18 @@ app.post('/api/chat', async (req, res) => {
             return res.status(response.status).json(errBody);
         }
 
-        if (wantsStream) {
+        // Only claim to be an event stream if Venice actually sent one. A model
+        // or gateway that ignores `stream` returns plain JSON; labelling that
+        // as an event stream leaves the browser parsing for `data:` frames
+        // that never come, and the run fails with an empty completion.
+        const upstreamType = response.headers.get('content-type') || '';
+        const upstreamIsStream = /event-stream/i.test(upstreamType);
+
+        if (wantsStream && !upstreamIsStream) {
+            console.warn(`[SERVER] Streaming was requested but Venice replied with "${upstreamType}" — passing it through as JSON.`);
+        }
+
+        if (wantsStream && upstreamIsStream) {
             // Pipe Venice's server-sent events straight through so the browser
             // can render fields as they arrive.
             res.setHeader('Content-Type', 'text/event-stream');

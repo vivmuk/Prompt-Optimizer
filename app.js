@@ -62,6 +62,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let currentAnthropicSkill = null; // Store generated Anthropic skill
 
+    // Set when callApi has already surfaced a specific API failure, so a
+    // caller's generic toast does not overwrite the useful message.
+    let optimizerApiReported = false;
+    let agentApiReported = false;
+
     // --- HELPER: Load Venice Models ---
     async function loadVeniceModels() {
         try {
@@ -174,19 +179,91 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => toast.classList.remove('show'), 3000);
     }
 
-    async function callApi(endpoint, body) {
+    // Turn Venice's error bodies into something a person can act on. Left
+    // unchecked, a 401 or a 429 parses fine as JSON, arrives without .choices,
+    // and every caller reports it as "generation failed" — which is why an
+    // expired key used to look identical to a bad model.
+    function describeApiError(status, payload) {
+        const detail = payload && (payload.error || payload.message ||
+            (payload.details && payload.details.message));
+        const text = typeof detail === 'string' ? detail
+                   : detail ? JSON.stringify(detail) : '';
+        const byStatus = {
+            400: 'Venice rejected the request',
+            401: 'Venice rejected the API key — check VENICE_API_KEY on the server',
+            402: 'Venice account is out of credit',
+            403: 'This model is not available to your key',
+            404: 'No API route — is the Node server running? A static deploy has no /api',
+            415: 'Wrong content type sent to Venice',
+            422: 'Venice flagged the request content',
+            429: 'Venice rate limit reached — wait and retry',
+            500: 'Venice had an internal error',
+            502: 'Venice was unreachable',
+            503: 'Venice is at capacity — retry shortly',
+            504: 'Venice timed out'
+        };
+        const base = byStatus[status] || `Venice returned ${status}`;
+        return text ? `${base}: ${text}` : base;
+    }
+
+    // callApi has already shown the specific reason; a caller that adds its own
+    // generic toast would just overwrite it. Callers use this to stay quiet.
+    function apiFailed(resp) {
+        return !resp || !!resp.__error || !resp.choices || !resp.choices[0];
+    }
+
+    // Asking for JSON mode makes models far likelier to emit bare JSON, but
+    // not every model accepts the parameter — some reject the request outright.
+    // Try with it, and on a 400 retry once without rather than turning a
+    // working model into a broken one.
+    async function callApiJsonMode(endpoint, body) {
+        const withMode = await callApi(endpoint, Object.assign({}, body, {
+            response_format: { type: 'json_object' }
+        }), { quiet: true });
+
+        if (withMode && !withMode.__error) return withMode;
+
+        if (withMode && withMode.__status === 400) {
+            console.warn('[api] model rejected response_format; retrying without it');
+            return callApi(endpoint, body);
+        }
+
+        // Any other failure is real — surface it now that we are not retrying.
+        if (withMode && withMode.__error) showToast(withMode.__error);
+        return withMode;
+    }
+
+    async function callApi(endpoint, body, opts) {
+        let response;
         try {
-            const response = await fetch(endpoint, {
+            response = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(body)
             });
-            return await response.json();
         } catch (error) {
-            console.error('API Error:', error);
-            showToast('Error communicating with server.');
-            return null;
+            console.error('[api] transport failure:', error);
+            if (!(opts && opts.quiet)) showToast('Cannot reach the server. Is it running?');
+            return { __error: 'Cannot reach the server.', __status: 0 };
         }
+
+        // A missing API route serves HTML, which is not parseable as JSON.
+        let payload = null;
+        const raw = await response.text();
+        try { payload = raw ? JSON.parse(raw) : null; } catch (e) { payload = null; }
+
+        if (!response.ok || payload === null) {
+            const message = payload === null && response.ok
+                ? 'The server replied with a non-JSON body — the /api route is probably missing.'
+                : describeApiError(response.status, payload);
+            console.error('[api]', response.status, raw.slice(0, 400));
+            // A caller that intends to retry suppresses the toast so the user
+            // is not told about a failure that is about to be worked around.
+            if (!(opts && opts.quiet)) showToast(message);
+            return { __error: message, __status: response.status };
+        }
+
+        return payload;
     }
 
     window.copyToClipboard = (elementId, btn) => {
@@ -360,6 +437,7 @@ Remember: Return ONLY the optimized prompt itself — no preamble, no explanatio
         try {
             const selectedModel = modelSelect.value;
             const response = await callApi('/api/chat', {
+                max_tokens: 6000,
                 model: selectedModel,
                 venice_parameters: {
                     include_venice_system_prompt: true,
@@ -379,6 +457,7 @@ Remember: Return ONLY the optimized prompt itself — no preamble, no explanatio
                 optimizerInlineStatus.style.display = 'none'; // Hide inline
                 optimizeBtn.disabled = false;
 
+                optimizerApiReported = apiFailed(response);
                 if (response && response.choices) {
                     optimizedOutput.innerText = response.choices[0].message.content;
                     optimizerResult.style.display = 'block';
@@ -391,7 +470,7 @@ Remember: Return ONLY the optimized prompt itself — no preamble, no explanatio
             clearInterval(interval);
             optimizerLoader.style.display = 'none';
             optimizeBtn.disabled = false;
-            showToast('Error optimizing prompt');
+            if (!optimizerApiReported) showToast('Error optimizing prompt');
         }
     });
 
@@ -405,6 +484,7 @@ Remember: Return ONLY the optimized prompt itself — no preamble, no explanatio
         generatedAnswer.innerText = 'Thinking...';
 
         const response = await callApi('/api/chat', {
+            max_tokens: 6000,
             model: selectedModel,
             venice_parameters: { include_venice_system_prompt: true },
             messages: [{ role: "user", content: optimizedPrompt }]
@@ -466,6 +546,7 @@ Remember: Return ONLY the optimized prompt itself — no preamble, no explanatio
         try {
             const selectedModel = agentModelSelect.value;
             const response = await callApi('/api/chat', {
+                max_tokens: 6000,
                 model: selectedModel,
                 venice_parameters: { include_venice_system_prompt: true },
                 messages: [
@@ -482,6 +563,7 @@ Remember: Return ONLY the optimized prompt itself — no preamble, no explanatio
                 agentInlineStatus.style.display = 'none'; // Hide inline
                 buildAgentBtn.disabled = false;
 
+                agentApiReported = apiFailed(response);
                 if (response && response.choices) {
                     let content = response.choices[0].message.content;
 
@@ -532,7 +614,7 @@ Remember: Return ONLY the optimized prompt itself — no preamble, no explanatio
             clearInterval(interval);
             agentLoader.style.display = 'none';
             buildAgentBtn.disabled = false;
-            showToast('Error building agent');
+            if (!agentApiReported) showToast('Error building agent');
         }
     });
 
@@ -681,6 +763,7 @@ Return a JSON object with this structure:
 Wrap the response in a JSON code block.`;
 
             const response = await callApi('/api/chat', {
+                max_tokens: 6000,
                 model: selectedSkillModel(),
                 venice_parameters: {
                     include_venice_system_prompt: true,
@@ -746,6 +829,15 @@ Wrap the response in a JSON code block.`;
     }
 
     // Main build button - generates full skill package
+    const SKILL_BTN_LABEL = buildAnthropicSkillBtn ? buildAnthropicSkillBtn.textContent : 'Generate Package';
+
+    function resetSkillButton() {
+        if (!buildAnthropicSkillBtn) return;
+        buildAnthropicSkillBtn.disabled = false;
+        buildAnthropicSkillBtn.classList.remove('thinking');
+        buildAnthropicSkillBtn.textContent = SKILL_BTN_LABEL;
+    }
+
     if (buildAnthropicSkillBtn) {
         buildAnthropicSkillBtn.addEventListener('click', async () => {
             const name = anthropicSkillNameInput.value.trim();
@@ -827,6 +919,7 @@ Include Assets: ${includeAssets}
 Return ONLY the complete SKILL.md content (frontmatter + body), no additional text or explanation.`;
 
             const skillMdResponse = await callApi('/api/chat', {
+                max_tokens: 6000,
                 model: selectedSkillModel(),
                 venice_parameters: {
                     include_venice_system_prompt: true,
@@ -843,6 +936,24 @@ Return ONLY the complete SKILL.md content (frontmatter + body), no additional te
                 skillMdContent = skillMdResponse.choices[0].message.content;
                 // Clean up any markdown code block wrappers
                 skillMdContent = skillMdContent.replace(/^```(?:markdown|md|yaml)?\n?/i, '').replace(/\n?```$/i, '').trim();
+            }
+
+            // Without a SKILL.md there is no package. Reporting success here
+            // handed the user an empty download and hid the real failure.
+            if (!skillMdContent) {
+                clearInterval(progressInterval);
+                anthropicSkillLoader.style.display = 'none';
+                anthropicInlineStatus.style.display = 'none';
+                resetSkillButton();
+                if (apiFailed(skillMdResponse)) {
+                    // callApi already named the cause; don't overwrite it.
+                    if (skillMdResponse && !skillMdResponse.__error) {
+                        showToast('Venice returned no SKILL.md content.');
+                    }
+                } else {
+                    showToast('The model returned an empty SKILL.md. Try again or switch model.');
+                }
+                return;
             }
 
             // Step 2: Generate scripts if needed
@@ -876,6 +987,7 @@ Guidelines:
 Wrap the response in a JSON code block.`;
 
                 const scriptsResponse = await callApi('/api/chat', {
+                    max_tokens: 6000,
                     model: selectedSkillModel(),
                     venice_parameters: {
                         include_venice_system_prompt: true,
@@ -930,6 +1042,7 @@ Guidelines:
 Wrap the response in a JSON code block.`;
 
                 const referencesResponse = await callApi('/api/chat', {
+                    max_tokens: 6000,
                     model: selectedSkillModel(),
                     venice_parameters: {
                         include_venice_system_prompt: true,
@@ -978,9 +1091,7 @@ Wrap the response in a JSON code block.`;
             // Show SKILL.md by default
             displaySkillFile('skill-md');
 
-            buildAnthropicSkillBtn.disabled = false;
-            buildAnthropicSkillBtn.classList.remove('thinking');
-            buildAnthropicSkillBtn.textContent = 'GENERATE SKILL PACKAGE 📦';
+            resetSkillButton();
 
             showToast('Skill package generated!');
         });
@@ -1141,6 +1252,8 @@ Wrap the response in a JSON code block.`;
 
             const model = pluginModelSelect ? pluginModelSelect.value : 'zai-org-glm-4.7';
             const components = {};
+            let producedAny = false;
+            let pluginApiError = null;
             const steps = [
                 { key: 'commands', label: 'Designing slash commands…',
                   prompt: `Design slash commands for a Claude Code plugin named "${name}".
@@ -1187,6 +1300,7 @@ Include 1-2 MCP servers if applicable, or an empty array if none are needed. Wra
             for (const step of steps) {
                 pluginStatus.textContent = step.label;
                 const resp = await callApi('/api/chat', {
+                    max_tokens: 6000,
                     model,
                     venice_parameters: { include_venice_system_prompt: true, enable_web_search: 'off' },
                     messages: [
@@ -1195,18 +1309,33 @@ Include 1-2 MCP servers if applicable, or an empty array if none are needed. Wra
                     ]
                 });
 
-                if (resp && resp.choices) {
-                    const raw = resp.choices[0].message.content;
-                    const s = raw.indexOf('['), e = raw.lastIndexOf(']');
-                    if (s !== -1 && e !== -1) {
-                        try { components[step.key] = JSON.parse(raw.substring(s, e + 1)); }
-                        catch { components[step.key] = []; }
-                    } else {
-                        components[step.key] = [];
-                    }
-                } else {
+                if (apiFailed(resp)) {
+                    if (resp && resp.__error) pluginApiError = resp.__error;
                     components[step.key] = [];
+                    continue;
                 }
+
+                const rescued = window.JsonRescue
+                    ? window.JsonRescue.rescue(resp.choices[0].message.content)
+                    : null;
+                const list = rescued && Array.isArray(rescued.value) ? rescued.value
+                           : rescued && rescued.value && Array.isArray(rescued.value.items) ? rescued.value.items
+                           : [];
+                components[step.key] = list;
+                if (list.length) producedAny = true;
+            }
+
+            // Every call failed, so there is no plugin. Saying "generated"
+            // here handed the user an empty graph and hid the cause.
+            if (!producedAny) {
+                clearInterval(iv);
+                pluginProgress.innerText = '0%';
+                pluginLoader.style.display = 'none';
+                pluginInlineStatus.style.display = 'none';
+                buildPluginBtn.disabled = false;
+                return showToast(pluginApiError
+                    ? 'Plugin generation stopped: ' + pluginApiError
+                    : 'The model returned no plugin components. Try again or switch model.');
             }
 
             currentPlugin = { name, description, components };
@@ -1474,10 +1603,24 @@ Include 1-2 MCP servers if applicable, or an empty array if none are needed. Wra
         }
     };
 
-    function extractLoopJson(raw) {
-        const s = raw.indexOf('{'), e = raw.lastIndexOf('}');
-        if (s === -1 || e === -1) return null;
-        try { return JSON.parse(raw.substring(s, e + 1)); } catch (err) { return null; }
+    // Loop specs are the largest JSON this app asks for, and the models most
+    // suited to writing them are reasoning models that narrate first. Slicing
+    // from the first brace to the last cannot survive either, so recovery is
+    // delegated to json-rescue, which also repairs a truncated response into
+    // the fields that did arrive.
+    const LOOP_SPEC_KEYS = ['loop_type', 'goal', 'trigger', 'actions',
+        'agent_instructions', 'human_readable_markdown'];
+    const LOOP_CRITIQUE_KEYS = ['verdict', 'findings', 'final_loop'];
+
+    let lastLoopRescue = null;
+
+    function extractLoopJson(raw, expectKeys) {
+        if (!window.JsonRescue) {           // module failed to load
+            try { return JSON.parse(raw); } catch (e) { return null; }
+        }
+        const result = window.JsonRescue.rescue(raw, expectKeys || LOOP_SPEC_KEYS);
+        lastLoopRescue = result;
+        return result ? result.value : null;
     }
 
     const LOOP_COMPILER_SYSTEM_PROMPT = `You are a Loop Engineering Compiler. You do not rewrite prompts — you reverse-engineer a vague natural-language request into a repeatable, autonomous agent LOOP built from five mandatory parts: TRIGGER, ACTION, PROOF, MEMORY, STOP/REPEAT.
@@ -1573,8 +1716,12 @@ OUTPUT — return a single JSON object with EXACTLY these keys, and nothing else
 
             // STEP 1: Loop Compiler
             loopStatus.textContent = 'Compiling loop: extracting goal, trigger, actions, proof…';
-            const compilerResp = await callApi('/api/chat', {
+            const compilerResp = await callApiJsonMode('/api/chat', {
                 model,
+                // A loop spec carries twelve fields, two of them long markdown
+                // documents. Left uncapped this is the request most likely to
+                // be truncated mid-string, which is what made the tab fail.
+                max_tokens: 8000,
                 venice_parameters: { include_venice_system_prompt: true, enable_web_search: 'off' },
                 messages: [
                     { role: 'system', content: LOOP_COMPILER_SYSTEM_PROMPT },
@@ -1582,22 +1729,41 @@ OUTPUT — return a single JSON object with EXACTLY these keys, and nothing else
                 ]
             });
 
-            const compiled = compilerResp && compilerResp.choices
-                ? extractLoopJson(compilerResp.choices[0].message.content)
-                : null;
-
-            if (!compiled) {
+            const failLoop = (message) => {
                 clearInterval(iv);
                 loopLoader.style.display = 'none';
                 loopInlineStatus.style.display = 'none';
                 compileLoopBtn.disabled = false;
-                return showToast('Loop compilation failed. Try again or switch model.');
+                showToast(message);
+            };
+
+            // callApi already explained an API-level failure; don't paper over it.
+            if (!compilerResp || compilerResp.__error) {
+                return failLoop(compilerResp && compilerResp.__error
+                    ? 'Loop compile stopped: ' + compilerResp.__error
+                    : 'Loop compile stopped: no response from the server.');
+            }
+            if (!compilerResp.choices || !compilerResp.choices[0]) {
+                return failLoop('Venice returned no completion for the loop compile.');
+            }
+
+            const compiled = extractLoopJson(compilerResp.choices[0].message.content, LOOP_SPEC_KEYS);
+
+            if (!compiled) {
+                const finish = compilerResp.choices[0].finish_reason;
+                return failLoop(finish === 'length'
+                    ? 'The model hit its output limit before finishing the spec. Try a model with a larger completion budget.'
+                    : 'The model did not return a usable loop spec. Try again or switch model.');
+            }
+            if (lastLoopRescue && lastLoopRescue.repaired) {
+                showToast('The response was cut short — showing the sections that completed.');
             }
 
             // STEP 2: Loop Critic
             loopStatus.textContent = 'Running Loop Critic: checking triggers, proof, memory, stop conditions…';
-            const criticResp = await callApi('/api/chat', {
+            const criticResp = await callApiJsonMode('/api/chat', {
                 model,
+                max_tokens: 8000,
                 venice_parameters: { include_venice_system_prompt: true, enable_web_search: 'off' },
                 messages: [
                     { role: 'system', content: LOOP_CRITIC_SYSTEM_PROMPT },
@@ -1605,9 +1771,15 @@ OUTPUT — return a single JSON object with EXACTLY these keys, and nothing else
                 ]
             });
 
-            const critique = criticResp && criticResp.choices
-                ? extractLoopJson(criticResp.choices[0].message.content)
-                : null;
+            // The critic is a hardening pass, not a hard dependency: if it
+            // fails, ship the compiled loop and say the review did not run.
+            let critique = null;
+            if (criticResp && !criticResp.__error && criticResp.choices && criticResp.choices[0]) {
+                critique = extractLoopJson(criticResp.choices[0].message.content, LOOP_CRITIQUE_KEYS);
+            }
+            if (!critique) {
+                showToast('Loop compiled, but the critic pass did not return a review.');
+            }
 
             clearInterval(iv);
             loopProgress.innerText = '100%';
@@ -1674,12 +1846,87 @@ OUTPUT — return a single JSON object with EXACTLY these keys, and nothing else
         loopOutputText.style.display = 'block';
 
         if (view === 'human') {
-            loopOutputText.textContent = spec.human_readable_markdown || '(no markdown generated)';
+            // A response cut short usually loses the long prose fields while
+            // keeping the structured ones. Rebuild the readable view from
+            // those rather than showing the user an empty panel.
+            loopOutputText.textContent = spec.human_readable_markdown ||
+                composeLoopMarkdown(spec) ||
+                '(the model returned no readable spec — try recompiling)';
         } else if (view === 'agent') {
-            loopOutputText.textContent = spec.agent_instructions || '(no agent instructions generated)';
+            loopOutputText.textContent = spec.agent_instructions ||
+                composeAgentInstructions(spec) ||
+                '(the model returned no agent instructions — try recompiling)';
         } else if (view === 'json') {
             loopOutputText.textContent = JSON.stringify(buildUniversalLoopSchema(spec), null, 2);
         }
+    }
+
+    // ── Fallback renderers ──────────────────────────────────────────────
+    // Used when a truncated completion cost us the prose fields but left the
+    // structure intact. Everything here is derived; nothing is invented.
+
+    const asList = (v) => Array.isArray(v) ? v.filter(Boolean)
+        : (typeof v === 'string' && v.trim() ? [v] : []);
+
+    function composeLoopMarkdown(spec) {
+        const parts = [];
+        if (spec.loop_type || spec.goal) {
+            parts.push(`# ${spec.loop_type || 'Loop'}`);
+            if (spec.goal) parts.push('', spec.goal);
+        }
+
+        const trigger = spec.trigger && typeof spec.trigger === 'object'
+            ? [spec.trigger.type, spec.trigger.description].filter(Boolean).join(' — ')
+            : spec.trigger;
+        if (trigger) parts.push('', '**Trigger**', '', trigger);
+
+        const section = (title, items, numbered) => {
+            const list = asList(items);
+            if (!list.length) return;
+            parts.push('', `**${title}**`, '');
+            list.forEach((item, i) => {
+                const text = typeof item === 'object' ? JSON.stringify(item) : item;
+                parts.push(numbered ? `${i + 1}. ${text}` : `- ${text}`);
+            });
+        };
+
+        section('Actions', spec.actions, true);
+        section('Proof of completion', spec.proof);
+        section('Memory between runs', spec.memory);
+        section('Constraints', spec.constraints);
+        section('Stop conditions', spec.stop_conditions);
+        section('Optimization loop', spec.optimization_loop);
+
+        if (!parts.length) return '';
+        parts.push('', '---', '',
+            '_Rebuilt from the structured spec: the model\'s prose section did not arrive in full._');
+        return parts.join('\n');
+    }
+
+    function composeAgentInstructions(spec) {
+        const parts = [];
+        if (spec.goal) parts.push(`Your job: ${spec.goal}`, '');
+
+        const trigger = spec.trigger && typeof spec.trigger === 'object'
+            ? [spec.trigger.type, spec.trigger.description].filter(Boolean).join(' — ')
+            : spec.trigger;
+        if (trigger) parts.push(`Run when: ${trigger}`, '');
+
+        const block = (label, items) => {
+            const list = asList(items);
+            if (!list.length) return;
+            parts.push(label);
+            list.forEach(item => parts.push(`- ${typeof item === 'object' ? JSON.stringify(item) : item}`));
+            parts.push('');
+        };
+
+        block('Each run, in order:', spec.actions);
+        block('You are done only when all of these are true:', spec.proof);
+        block('Carry forward between runs:', spec.memory);
+        block('Never:', spec.constraints);
+        block('Stop and escalate when:', spec.stop_conditions);
+
+        return parts.length ? parts.join('\n').trim() : '';
     }
 
     function buildUniversalLoopSchema(spec) {
