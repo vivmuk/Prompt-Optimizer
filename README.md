@@ -116,6 +116,20 @@ and returns the repaired spec plus a runnable prompt.
 Outputs: the gauntlet prompt, the agent roster, the scored critic rubric, the
 blind comparison protocol, loop control and stop conditions, and the raw JSON.
 
+## Is the API working?
+
+Run the preflight rather than guessing:
+
+```bash
+npm run doctor              # checks the key and the Venice API
+npm run doctor -- --server  # also checks a running local server
+```
+
+It reports, with a fix for each failure: whether the key is present and
+accepted, whether the catalogue loads, which models cap completions below what
+the loop compiler asks for, whether the chosen model honours JSON mode, and
+whether streamed responses carry the usage frame the cost meter needs.
+
 ## Running it
 
 ### Local (recommended — the API proxy lives here)
@@ -128,10 +142,19 @@ npm start          # http://localhost:3000
 
 ### Netlify
 
-Publish the repo as a static site and set `VENICE_API_KEY` in
-Site settings → Environment variables. Note that the `/api/*` proxy routes are
-served by `server.js`; a static Netlify deploy needs equivalent functions for
-chat, models and image generation.
+Publish the repo and set `VENICE_API_KEY` in Site settings → Environment
+variables. `netlify/functions/venice.js` proxies chat, models and image
+generation, and `netlify.toml` redirects `/api/*` onto it, so the deployed site
+behaves like the local server.
+
+Two differences on Netlify:
+
+- **No streaming.** A function response is buffered, so `stream: true` is
+  stripped and the equivalent non-streamed call is made. The Harness Builder
+  still works; it fills in at the end rather than layer by layer.
+- **No ZIP endpoints.** `/api/harness-bundle` and `/api/skill-package` need
+  `archiver` and stay local-only. The Harness Builder falls back to a Markdown
+  download that carries every file.
 
 ## Models
 
@@ -214,11 +237,32 @@ editing that one block.
 index.html        App shell: left rail, control panels, orchestration columns
 styles.css        Design tokens, shell, and every shared component
 generators.css    Components specific to Content Loop and Gauntlet Loop
+json-rescue.js    Recovers JSON from reasoning preambles, prose and truncation
 meter.js          Run progress bar, live cost metering, fetch instrumentation
+doctor.js         API preflight — run it when a generator misbehaves
 app.js            Optimizer, Agent Builder, Skills, Plugin Builder, Loop Design
 generators.js     Harness Builder, Agent Rules, Content Loop, Gauntlet Loop, shared plumbing
 server.js         Express server and the Venice proxy routes
 ```
+
+## When a generator fails
+
+Failures are reported with their cause rather than a generic message. The ones
+you are most likely to see:
+
+| Message | What to do |
+| --- | --- |
+| *Venice rejected the API key* | The key is wrong or revoked. Check `.env`, then `npm run doctor`. |
+| *Venice account is out of credit* | Top up the Venice account. |
+| *Venice rate limit reached* | Wait and retry. |
+| *No API route — is the Node server running?* | You are on a static host without the proxy, or `npm start` is not running. |
+| *The model hit its output limit* | Pick a model with a larger completion budget; `npm run doctor` lists the tight ones. |
+| *The response was cut short — showing the sections that completed* | The spec is partial but usable. Recompile, or switch to a roomier model. |
+
+Model output is recovered by `json-rescue.js`, which tolerates reasoning
+preambles, `<thinking>` blocks, prose either side of the JSON, and a response
+cut off mid-string — the last of which it repairs into the fields that did
+arrive rather than failing the run.
 
 ## Security notes
 

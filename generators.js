@@ -59,8 +59,21 @@
     return out || fallback || 'output';
   }
 
-  /* Pull the first balanced JSON object or array out of a model response. */
-  function extractJson(raw) {
+  /* Pull a JSON value out of a model response.
+
+     Prefer json-rescue, which survives reasoning preambles and repairs a
+     truncated payload. The scan below stays as a fallback for the case where
+     that module failed to load. */
+  function extractJson(raw, expectKeys) {
+    if (window.JsonRescue) {
+      const result = window.JsonRescue.rescue(raw, expectKeys);
+      if (result) return result.value;
+      return null;
+    }
+    return extractJsonFallback(raw);
+  }
+
+  function extractJsonFallback(raw) {
     if (!raw) return null;
     const text = String(raw).replace(/```json/gi, '```').replace(/```/g, '');
     const starts = [text.indexOf('{'), text.indexOf('[')].filter(i => i >= 0);
@@ -112,10 +125,18 @@
     return content;
   }
 
-  async function chatJson(model, system, user, opts) {
+  async function chatJson(model, system, user, opts, expectKeys) {
     const content = await chat(model, system, user, opts);
-    const parsed = extractJson(content);
-    if (!parsed) throw new Error('Model did not return parseable JSON.');
+    const parsed = extractJson(content, expectKeys);
+    if (!parsed) {
+      /* Distinguish "ran out of room" from "ignored the format" — they need
+         different fixes and the operator cannot tell them apart otherwise. */
+      const looksTruncated = content.length > 200 &&
+        !/[}\]]\s*$/.test(content.trim());
+      throw new Error(looksTruncated
+        ? 'The model hit its output limit before closing the JSON. Try a model with a larger completion budget.'
+        : 'The model did not return parseable JSON.');
+    }
     return parsed;
   }
 
