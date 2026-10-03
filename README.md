@@ -2,7 +2,7 @@
 
 A Venice.ai-powered orchestration workbench for prompts, agents, skills, plugins and autonomous loops.
 
-Seven generators live in the left rail. Pick one, fill in the control panel on the
+Ten workspaces live in the left rail. Pick one, fill in the control panel on the
 left, and watch the run assemble in the orchestration column on the right.
 
 ## The generators
@@ -10,6 +10,7 @@ left, and watch the run assemble in the orchestration column on the right.
 | Generator | What it produces |
 | --- | --- |
 | **Optimizer** | A rough draft becomes an engineered prompt, shaped for a specific provider dialect (Claude XML, Gemini PTCF, OpenAI Markdown, or universal). Answer it in place or hand it to another chatbot. |
+| **Model Tuner** | Pick a provider, then a model, and learn how its maker says to prompt it: strengths and trade-offs, do's and don'ts, a before/after rewrite, the settings that matter, and the sources. Then turn a one-line idea into a prompt tuned to that model's guidance. |
 | **Agent Builder** | Name, description, system instructions and conversation starters for a custom agent. |
 | **Skills** | A portable `SKILL.md` package — SKILL.md, scripts, reference docs, folder tree — downloadable as a `.skill` archive. The Agent Skills standard is no longer Claude-only: Claude Code, Codex CLI, Cursor and Gemini CLI load the same folder. |
 | **Harness Builder** | A complete agent harness — rules, playbooks, subagents, skills, MCP wiring, hooks, permissions, execution layer, state schema, evals, context budget, anti-patterns and the QHX improvement loop. Streams layer by layer, refines any single layer in place, and downloads as a repo-shaped `.zip`. |
@@ -18,6 +19,50 @@ left, and watch the run assemble in the orchestration column on the right.
 | **Loop Design** | A Loop Engineering spec — trigger, actions, proof, memory, stop conditions — pressure-tested by a second-pass Loop Critic. Exports as markdown, JSON or a Mermaid diagram. |
 | **Content Loop** | A repeatable content *engine*: pillars, a dated cycle calendar, channel-native drafts, Venice-generated key visuals, and the feedback loop that makes cycle two better than cycle one. |
 | **Gauntlet Loop** | A tool-creation gauntlet: parallel sub-agents that each own one dimension, an adversarial critic scoring against a named gold standard, a blind side-by-side comparison protocol, and a loop that will not exit until the critic picks your build. Outputs a runnable mega-prompt. |
+
+## Model Tuner
+
+The Optimizer writes for a provider *dialect*. The Model Tuner writes for a
+specific *model*, using that model's maker's own published prompting guidance,
+and teaches the guidance while it does.
+
+Choose a provider, then one of its models. The stage shows:
+
+- **Guide**: positioning, specs and price, strengths vs trade-offs (each with
+  the reason it holds), a Do / Don't grid, a before → after rewrite taken from
+  or modelled on the provider's examples, the settings that matter (effort,
+  thinking level, temperature, verbosity), the principles that hold across the
+  provider's whole lineup, and links to every source. **Cheat sheet ↓**
+  downloads all of it as Markdown.
+- **Lineup**: the provider's models side by side, chosen by job, plus every
+  provider at a glance and which providers were left out and why.
+- **Tuned prompt**: your rough prompt rewritten for the chosen model, with
+  a system/user split where the provider recommends one, a list of the
+  guidelines applied and why, the `{{PLACEHOLDERS}}` only you can fill, and the
+  run settings. When Venice serves the same model, **Test on Venice** runs the
+  edited prompt there.
+
+### Which models are included
+
+A model is listed only when its maker publishes prompting guidance that applies
+to it:
+
+| Provider | Models | Main sources |
+| --- | --- | --- |
+| Anthropic | Claude Fable 5.1, Opus 5.5, Sonnet 5.5, Haiku 4.5 | Prompting best practices + per-model prompting pages |
+| OpenAI | GPT-6 Astra, GPT-6.1 Sol, GPT-6 Luna, GPT-5.5 | Using GPT-6, *Rethinking skills and prompts for GPT-6 Astra*, GPT-5.5 prompt guidance |
+| Google | Gemini 3.8 Flash, 3.1 Pro, 3.5 Flash-Lite | Prompt design strategies, Gemini 3 developer guide |
+| DeepSeek | V4.1 Flash, V4 Pro | API parameter settings, V4 model card |
+| Alibaba Qwen | Qwen3.8-Max, Qwen3.8-27B | Qwen3.8 model card best practices |
+| Mistral AI | Mistral Medium 3.5, Small 4 | Mistral prompting guide |
+| Meta | Llama 4 Maverick, Scout | Llama prompting guide, Llama 4 model card |
+
+Left out: xAI Grok (its only text prompting guide covers a retired model)
+and Z.ai GLM (sampling settings are documented, but there is no prompting guide).
+
+All guide content lives in `model-guides.js` as plain data. Each provider and
+model carries its own `sources`, and `verifiedOn` records when it was last
+checked. Updating a model means editing that file; no code changes are needed.
 
 ## Harness Builder
 
@@ -242,6 +287,9 @@ meter.js          Run progress bar, live cost metering, fetch instrumentation
 doctor.js         API preflight — run it when a generator misbehaves
 app.js            Optimizer, Agent Builder, Skills, Plugin Builder, Loop Design
 generators.js     Harness Builder, Agent Rules, Content Loop, Gauntlet Loop, shared plumbing
+model-guides.js   Provider prompting guidance as data, with a source for every claim
+model-tuner.js    Model Tuner: guide, lineup, tuned prompt, Venice test-run
+model-tuner.css   Model Tuner components
 server.js         Express server and the Venice proxy routes
 ```
 
