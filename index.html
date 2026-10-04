@@ -11,6 +11,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="generators.css">
+  <link rel="stylesheet" href="model-tuner.css">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
 </head>
 <body>
@@ -47,6 +48,17 @@
             <span class="tab-label">Optimizer</span>
             <span class="tab-hint">Draft → engineered prompt</span>
           </span>
+        </button>
+
+        <button class="tab-btn" data-tab="model-tuner">
+          <span class="tab-glyph">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4v16M12 4v16M19 4v16"/><circle cx="5" cy="9" r="2.1" fill="currentColor"/><circle cx="12" cy="15" r="2.1" fill="currentColor"/><circle cx="19" cy="7" r="2.1" fill="currentColor"/></svg>
+          </span>
+          <span class="tab-copy">
+            <span class="tab-label">Model Tuner</span>
+            <span class="tab-hint">Per-model prompts &amp; guides</span>
+          </span>
+          <span class="tab-badge">New</span>
         </button>
 
         <button class="tab-btn" data-tab="agent-builder">
@@ -252,6 +264,81 @@
             </div>
             <div id="generated-answer" style="display:none;"></div>
           </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ── 1b · MODEL TUNER ─────────────────────────────────────────────── -->
+    <section id="model-tuner" class="section">
+
+      <div class="panel">
+        <div class="section-head">
+          <svg class="motif" viewBox="0 0 44 44" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <rect width="44" height="44" fill="#16272B"/>
+            <path d="M12 9v26M22 9v26M32 9v26" stroke="#2F5057" stroke-width="2.2" stroke-linecap="round"/>
+            <circle cx="12" cy="17" r="4" fill="#E4622B"/>
+            <circle cx="22" cy="27" r="4" fill="#F0A93C"/>
+            <circle cx="32" cy="14" r="4" fill="#35B98C"/>
+          </svg>
+          <h2>Model Tuner</h2>
+        </div>
+        <p class="section-desc">Pick the model the prompt will run on. Learn what its maker recommends, then turn a one-line idea into a prompt written the way that model reads best.</p>
+
+        <div class="panel-rule">Provider</div>
+        <div class="mt-list" id="mt-providers" role="listbox" aria-label="Provider"></div>
+
+        <div class="panel-rule">Model</div>
+        <div class="mt-list" id="mt-models" role="listbox" aria-label="Model"></div>
+
+        <div class="panel-rule">Your prompt</div>
+        <div class="input-group">
+          <label for="mt-prompt">A rough idea is enough</label>
+          <textarea id="mt-prompt" placeholder="e.g. write a launch email for our new budgeting app"></textarea>
+        </div>
+
+        <div class="input-group">
+          <label>Task type</label>
+          <div class="chip-grid" id="mt-task">
+            <div class="chip selected" data-task="general">General</div>
+            <div class="chip" data-task="writing">Writing</div>
+            <div class="chip" data-task="coding">Coding</div>
+            <div class="chip" data-task="agentic">Agentic</div>
+            <div class="chip" data-task="extraction">Extraction</div>
+            <div class="chip" data-task="analysis">Analysis</div>
+          </div>
+        </div>
+
+        <div class="panel-rule">Compiler</div>
+        <div class="input-group">
+          <label for="mt-model">Model that writes the prompt</label>
+          <select id="mt-model"></select>
+          <p class="mt-hint">Any Venice model can write the prompt. The target model above decides its style.</p>
+        </div>
+
+        <div class="toolbar">
+          <button class="action-btn" id="mt-run-btn">Tune prompt</button>
+          <span class="inline-status" id="mt-inline-status" style="display:none;"><span id="mt-progress">Running</span></span>
+        </div>
+      </div>
+
+      <div class="stage">
+        <div class="stage-head">
+          <span class="stage-title">Model guide</span>
+          <span class="stage-pulse" data-pulse-for="model-tuner"><span class="dot"></span><span class="pulse-text">Idle</span></span>
+        </div>
+        <div class="stage-body">
+
+          <div class="mt-views" role="tablist">
+            <button class="out-tab active" data-mt-view="guide" role="tab">Guide</button>
+            <button class="out-tab" data-mt-view="lineup" role="tab">Lineup</button>
+            <button class="out-tab" data-mt-view="tuned" role="tab" id="mt-tuned-tab">Tuned prompt</button>
+            <button class="copy-btn" id="mt-cheatsheet-btn" title="Download this guide as Markdown">Cheat sheet ↓</button>
+          </div>
+
+          <div id="mt-guide" class="mt-view"></div>
+          <div id="mt-lineup" class="mt-view" style="display:none;"></div>
+          <div id="mt-tuned" class="mt-view" style="display:none;"></div>
 
         </div>
       </div>
@@ -1215,5 +1302,7 @@
 <script src="meter.js"></script>
 <script src="app.js"></script>
 <script src="generators.js"></script>
+<script src="model-guides.js"></script>
+<script src="model-tuner.js"></script>
 </body>
 </html>

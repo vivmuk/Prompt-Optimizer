@@ -500,9 +500,15 @@
     fillModels($('#ar-model'), textModels, 'zai-org-glm-4.7');
     fillModels($('#hb-model'), textModels, 'deepseek-r1-671b-thinking');
     fillModels($('#anthropic-model-select'), textModels, 'zai-org-glm-4.7');
+    fillModels($('#mt-model'), textModels, 'zai-org-glm-4.7');
 
     fillModels($('#cl-image-model'), imageModels, 'nano-banana-2');
     fillModels($('#hb-image-model'), imageModels, 'nano-banana-2');
+
+    /* Model Tuner matches its target model against what Venice actually
+       serves, so it needs the catalogue itself, not just a filled picker. */
+    window.VeniceCatalogue = reachable ? textModels : [];
+    document.dispatchEvent(new CustomEvent('venice:catalogue', { detail: window.VeniceCatalogue }));
   }
 
   /* ── Generic control wiring: chips, segmented, ranges ───────────────── */
@@ -2361,6 +2367,14 @@ Return ONLY the Markdown file content — no commentary, no code fence around th
       toast('JSON downloaded.');
     });
   }
+
+  /* The plumbing other workspaces build on (model-tuner.js), so they share
+     one transport, one JSON rescue path and one meter instead of copies. */
+  window.Workbench = {
+    $: $, $$: $$, esc: esc, toast: toast, copyText: copyText, download: download, slug: slug,
+    chatJson: chatJson, pulse: pulse, modelLabel: modelLabel,
+    meterStart: meterStart, meterStage: meterStage, meterDone: meterDone, meterFinish: meterFinish
+  };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', boot);
