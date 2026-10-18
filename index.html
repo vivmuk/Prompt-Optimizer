@@ -166,10 +166,22 @@
           <span class="tab-badge">New</span>
         </button>
       </nav>
+      <div class="rail-group-label">Vault</div>
+      <nav class="nav-tabs">
+        <button class="tab-btn" data-tab="skill-vault">
+          <span class="tab-glyph">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><circle cx="12" cy="13" r="2.6"/><path d="M12 15.6V18"/></svg>
+          </span>
+          <span class="tab-text">
+            <span class="tab-label">Skill Vault</span>
+            <span class="tab-hint">Download all 11 skills</span>
+          </span>
+          <span class="tab-badge">New</span>
+        </button>
+      </nav>
 
     </div>
 
-    <div class="rail-foot">
       <span class="api-dot" id="api-dot">Venice</span>
       <a href="https://venice.ai" target="_blank" rel="noopener noreferrer">venice.ai ↗</a>
     </div>
@@ -1362,6 +1374,39 @@
         <div class="section-head"><h2 style="font-size:1.05rem">Agent skill library — downloadable</h2></div>
         <p class="section-desc">Every generator in this app has a matching, tested SKILL.md you can drop into any agent (Claude Code, Codex CLI, Cursor, Hermes). Generated with the skill-creator format: frontmatter, triggers, steps, pitfalls — each one executed and verified against the live Venice API before publishing.</p>
         <div id="skill-library" class="ba-cards"></div>
+      </div>
+
+    </section>
+
+    <!-- ── SKILL VAULT ─────────────────────────────────────────────────── -->
+    <section id="skill-vault" class="section">
+
+      <div class="panel">
+        <div class="section-head">
+          <svg class="motif" viewBox="0 0 44 44" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <rect width="44" height="44" fill="#16272B"/>
+            <rect x="10" y="14" width="24" height="18" rx="3" fill="none" stroke="#E4622B" stroke-width="2"/>
+            <circle cx="22" cy="23" r="4" fill="none" stroke="#35B98C" stroke-width="2"/>
+            <path d="M22 27v5" stroke="#35B98C" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <h2>Skill Vault</h2>
+        </div>
+        <p class="section-desc">Every generator in this app ships as a portable, tested <code style="font-family:var(--font-mono);font-size:.85em;">viv-*.md</code> skill. Drop any folder into Claude Code, Codex CLI, Cursor, Gemini CLI or Hermes — they all load the same Agent Skills standard. Each skill was executed and verified against the live Venice API before publishing. All MIT licensed.</p>
+
+        <div class="panel-rule">How to install</div>
+        <ol class="vault-steps">
+          <li>Download a <code>viv-&lt;name&gt;.md</code> file below.</li>
+          <li>Rename it to <code>SKILL.md</code> inside a folder named after the skill, e.g. <code>viv-be-ambitious/SKILL.md</code>.</li>
+          <li>Drop the folder into your agent's skills directory (e.g. <code>~/.claude/skills/</code>, <code>~/.hermes/skills/</code>, or your project's <code>.agents/skills/</code>).</li>
+        </ol>
+
+        <div class="panel-rule">All skills — click to download</div>
+        <div id="vault-grid" class="vault-grid"></div>
+
+        <div style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap">
+          <button id="vault-dl-all" class="btn btn-primary">⬇ Download all 11 skills (.zip)</button>
+          <a class="btn" href="https://github.com/robonuggets/be-ambitious" target="_blank" rel="noopener noreferrer" style="text-decoration:none">Origin: robonuggets/be-ambitious ↗</a>
+        </div>
       </div>
 
     </section>

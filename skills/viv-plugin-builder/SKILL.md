@@ -1,5 +1,5 @@
 ---
-name: plugin-builder
+name: viv-plugin-builder
 description: Designs a complete agent plugin package — commands, agents, skills, hooks, MCP config — packaged as build instructions any AI can scaffold from. Use when the user asks to "make a Claude Code plugin", "package my tools as a plugin", or "build a plugin that does X".
 license: MIT
 version: 1.0.0

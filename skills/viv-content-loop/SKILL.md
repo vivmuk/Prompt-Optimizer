@@ -1,5 +1,5 @@
 ---
-name: content-loop
+name: viv-content-loop
 description: Runs a repeatable content engine — pillars, dated calendar, channel-native drafts, generated visuals, and a feedback loop that makes cycle two better than cycle one. Use when the user asks to "create a content plan", "write this week's posts", or "set up my content pipeline".
 license: MIT
 version: 1.0.0

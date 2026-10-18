@@ -1,5 +1,5 @@
 ---
-name: model-tuner
+name: viv-model-tuner
 description: Picks the right model for a task and rewrites the prompt the way that specific model reads best — capability, cost, speed, modality, context window. Use when the user asks "which model should I use", "tune this prompt for <model>", or wants provider-specific prompt shaping.
 license: MIT
 version: 1.0.0

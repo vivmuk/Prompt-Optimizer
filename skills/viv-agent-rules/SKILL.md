@@ -1,5 +1,5 @@
 ---
-name: agent-rules
+name: viv-agent-rules
 description: Writes the AGENTS.md-style rules file every coding agent reads before touching a repo — scope, safety, verification duties, project conventions — plus derived variants (CLAUDE.md, Cursor rules). Use when the user asks to "write AGENTS.md", "set rules for my coding agent", or wants the agent to stop breaking the build.
 license: MIT
 version: 1.0.0

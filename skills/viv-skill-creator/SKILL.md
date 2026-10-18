@@ -1,5 +1,5 @@
 ---
-name: skill-creator
+name: viv-skill-creator
 description: Authors a robust SKILL.md package in the Agent Skills standard — trigger-rich frontmatter, numbered steps with exact commands, verification steps and pitfalls — and validates it by executing its own instructions. Use when the user asks to "create a skill", "write a SKILL.md", "turn this workflow into a skill", or "package this procedure for my agent".
 license: MIT
 version: 1.0.0

@@ -1,5 +1,5 @@
 ---
-name: loop-design
+name: viv-loop-design
 description: Turns a plain-English request into a loop-engineering spec — trigger, actions, proof, memory and stop conditions — pressure-tested by a second-pass critic. Use when the user asks to "automate X", "make this run on a loop", "set up a recurring agent task", or "watch for Y and alert me".
 license: MIT
 version: 1.0.0

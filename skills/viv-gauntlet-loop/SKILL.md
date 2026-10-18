@@ -1,5 +1,5 @@
 ---
-name: gauntlet-loop
+name: viv-gauntlet-loop
 description: Runs a tool-creation gauntlet — parallel sub-agents each owning one dimension, an adversarial critic scoring against a named gold standard, and a blind-comparison loop that won't exit until the winner is proven. Use when the user asks to "run a gauntlet", "compete N approaches and pick the best", or "pressure-test this tool or solution".
 license: MIT
 version: 1.0.0

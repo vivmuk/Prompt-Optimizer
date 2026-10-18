@@ -1,5 +1,5 @@
 ---
-name: harness-builder
+name: viv-harness-builder
 description: Designs the full agent harness — the environment, not the prompt: rules, playbooks, subagents, skills, MCP wiring, hooks, permissions and the execution layer that turns an agent into a repeatable operator. Use when the user asks to "build a harness", "wire up an agent environment", or "make my agent reliable in production".
 license: MIT
 version: 1.0.0

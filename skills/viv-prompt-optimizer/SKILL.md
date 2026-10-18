@@ -1,5 +1,5 @@
 ---
-name: prompt-optimizer
+name: viv-prompt-optimizer
 description: Transforms a rough idea into an engineered, provider-shaped prompt — role, context, constraints, output contract and self-check. Use when the user asks to "optimize this prompt", "improve my prompt", "make this prompt better", or pastes a prompt with "rewrite this for a model".
 license: MIT
 version: 1.0.0

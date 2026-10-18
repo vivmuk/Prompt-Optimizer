@@ -1,5 +1,5 @@
 ---
-name: agent-builder
+name: viv-agent-builder
 description: Generates a complete custom-agent spec — system instructions, tool descriptions, starters, guardrails and stop conditions — for any agent platform. Use when the user asks to "build an agent", "design an AI agent for X", or "write system instructions for my bot".
 license: MIT
 version: 1.0.0

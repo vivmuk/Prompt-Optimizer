@@ -264,7 +264,61 @@ document.addEventListener('DOMContentLoaded', () => {
       <div class="ba-card">
         <h4>${s.title}</h4>
         <p>${s.desc}</p>
-        <a href="skills/${s.id}/SKILL.md" download>⬇︎ Download SKILL.md</a>
+        <a href="skills/viv-${s.id}/SKILL.md" download="viv-${s.id}.md">⬇︎ Download viv-${s.id}.md</a>
       </div>`).join('');
   }
+});
+
+
+/* ═══ Skill Vault tab ═══ */
+document.addEventListener('DOMContentLoaded', () => {
+  const grid = document.getElementById('vault-grid');
+  if (!grid) return;
+  const CAT = {
+    'be-ambitious': 'Ambition', 'prompt-optimizer': 'Compose', 'model-tuner': 'Compose',
+    'agent-builder': 'Package', 'harness-builder': 'Package', 'skill-creator': 'Package',
+    'agent-rules': 'Package', 'plugin-builder': 'Package', 'loop-design': 'Loops',
+    'content-loop': 'Loops', 'gauntlet-loop': 'Loops'
+  };
+  grid.innerHTML = LIB.map((s) => `
+    <div class="vault-card">
+      <h4>${s.title}</h4>
+      <p>${s.desc}</p>
+      <span class="vault-file">skills/viv-${s.id}/SKILL.md · ${CAT[s.id] || 'General'}</span>
+      <a href="skills/viv-${s.id}/SKILL.md" download="viv-${s.id}.md">⬇ Download viv-${s.id}.md</a>
+    </div>`).join('');
+
+  const zipBtn = document.getElementById('vault-dl-all');
+  if (zipBtn) zipBtn.addEventListener('click', async () => {
+    zipBtn.disabled = true;
+    const old = zipBtn.textContent;
+    zipBtn.textContent = 'Zipping…';
+    try {
+      if (!window.JSZip) {
+        await new Promise((res, rej) => {
+          const s = document.createElement('script');
+          s.src = 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js';
+          s.onload = res; s.onerror = rej;
+          document.head.appendChild(s);
+        });
+      }
+      const zip = new window.JSZip();
+      const results = await Promise.all(LIB.map(async (s) => {
+        const r = await fetch(`skills/viv-${s.id}/SKILL.md`);
+        if (!r.ok) throw new Error(`viv-${s.id}: ${r.status}`);
+        zip.file(`viv-${s.id}/SKILL.md`, await r.text());
+      }));
+      const blob = await zip.generateAsync({ type: 'blob' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'viv-skills-pack.zip';
+      a.click();
+      URL.revokeObjectURL(a.href);
+      zipBtn.textContent = old;
+      zipBtn.disabled = false;
+    } catch (e) {
+      zipBtn.textContent = 'Zip failed — download individually';
+      setTimeout(() => { zipBtn.textContent = old; zipBtn.disabled = false; }, 3000);
+    }
+  });
 });
