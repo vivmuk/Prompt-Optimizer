@@ -41,7 +41,10 @@ exports.handler = async function (event) {
   }
 
   /* /.netlify/functions/venice/chat  ->  "chat" */
-  const path = (event.path || '').replace(/^.*\/venice\/?/, '').replace(/\/+$/, '');
+  let path = (event.path || '').replace(/\/+$/, '');
+  // Works both via the /api/* redirect and the direct /.netlify/functions/venice/* URL.
+  const m = path.match(/(?:\/venice\/|\/api\/)([a-z-]+)$/i);
+  path = m ? m[1].toLowerCase() : path.replace(/^.*\//, '').toLowerCase();
   const auth = { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' };
 
   try {

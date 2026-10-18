@@ -32,8 +32,30 @@ document.addEventListener('DOMContentLoaded', () => {
   setTimeout(fillModels, 3000);
   setTimeout(fillModels, 8000);
 
+  // Venice text models that are always present and don't burn the budget on
+  // hidden reasoning. Used when the shared dropdown hasn't loaded.
+  const BA_FALLBACK_MODELS = ['openai-gpt-oss-120b', 'qwen-3-42b', 'llama-3.3-70b'];
+  let resolvedModel = null;
+
   function selectedModel() {
-    return (modelSel && modelSel.value) || BA_MODEL_DEFAULT;
+    return (modelSel && modelSel.value) || resolvedModel || BA_MODEL_DEFAULT;
+  }
+
+  async function resolveDefaultModel() {
+    if (selectedModel()) return;
+    const resp = await fetch('/api/models?type=text', {
+      headers: (window.getVeniceKey && window.getVeniceKey()) ? { 'x-venice-key': window.getVeniceKey() } : {}
+    });
+    if (resp.ok) {
+      const data = await resp.json().catch(() => null);
+      const ids = (data && data.data ? data.data : data || []).map((m) => m.id || m);
+      for (const cand of BA_FALLBACK_MODELS) {
+        if (ids.includes(cand)) { resolvedModel = cand; return; }
+      }
+      if (ids.length) resolvedModel = ids[0];
+      return;
+    }
+    resolvedModel = BA_FALLBACK_MODELS[0];
   }
 
   /* ── the engine: three passes composed into one chat call ── */
@@ -102,6 +124,7 @@ document.addEventListener('DOMContentLoaded', () => {
     outBox.hidden = true;
 
     const endpoint = '/api/chat';
+    await resolveDefaultModel();
     const model = selectedModel();
     const body = {
       model: model || undefined,
