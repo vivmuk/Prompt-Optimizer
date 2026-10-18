@@ -17,8 +17,11 @@
 
 const VENICE = 'https://api.venice.ai/api/v1';
 
-function getKey() {
-  const raw = process.env.VENICE_API_KEY;
+function getKey(event) {
+  /* BYOK: the visitor's own key (x-venice-key header) always wins.
+     The server env key is no longer used — visitors bring their own. */
+  const h = (event && event.headers) || {};
+  const raw = h['x-venice-key'] || h['X-Venice-Key'];
   if (!raw) return null;
   return raw.replace(/['"]/g, '').trim();
 }
@@ -32,9 +35,9 @@ function reply(statusCode, body, extraHeaders) {
 }
 
 exports.handler = async function (event) {
-  const key = getKey();
+  const key = getKey(event);
   if (!key) {
-    return reply(500, { error: 'Configuration Error: VENICE_API_KEY is not set on the site.' });
+    return reply(500, { error: 'No Venice API key. Click the ⚙ gear to add your own key.' });
   }
 
   /* /.netlify/functions/venice/chat  ->  "chat" */
@@ -50,10 +53,7 @@ exports.handler = async function (event) {
     }
 
     if (path === 'health') {
-      return reply(200, {
-        status: 'ok',
-        env_check: { has_key: true, key_length: key.length, key_start: `${key.slice(0, 4)}...` }
-      });
+      return reply(200, { status: 'ok', key: 'user-provided' });
     }
 
     if (event.httpMethod !== 'POST') {

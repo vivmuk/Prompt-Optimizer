@@ -1,0 +1,58 @@
+    <!-- ── BE AMBITIOUS ─────────────────────────────────────────────────── -->
+    <section id="be-ambitious" class="section">
+
+      <div class="panel">
+        <div class="section-head">
+          <svg class="motif" viewBox="0 0 44 44" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <rect width="44" height="44" fill="#16272B"/>
+            <path d="M22 6c5.6 0 10 4.3 10 9.7 0 3.6-1.8 6-3.7 8.1-1 1.2-1.7 2.6-1.7 4.2h-9.2c0-1.6-.7-3-1.7-4.2C13.8 21.7 12 19.3 12 15.7 12 10.3 16.4 6 22 6Z" fill="none" stroke="#E4622B" stroke-width="2.2" stroke-linejoin="round"/>
+            <path d="M17 33h10M18.5 37h7" stroke="#35B98C" stroke-width="2.2" stroke-linecap="round"/>
+          </svg>
+          <h2>Be Ambitious Prompting</h2>
+        </div>
+        <p class="section-desc">Felix Rieseberg (Anthropic) says we're not ambitious enough with models. His fix has three levers: <b style="color:#E4622B">Altitude</b> — aim at the goal beyond the goal; <b style="color:#F0A93C">Depth</b> — work with the instruments of the field's best, checked by an outside judge; <b style="color:#35B98C">Range</b> — replace the nouns with verbs, then assemble a crew of unexpected fields. <i>Better, not bigger.</i> Based on <a href="https://felixrieseberg.com/how-to-be-more-ambitious-a-tutorial-for-humans-with-models/" target="_blank" rel="noopener">the article</a> · summarized by <a href="https://youtu.be/NarezKh3w4o" target="_blank" rel="noopener">RoboNuggets</a> · skill from <a href="https://github.com/robonuggets/be-ambitious" target="_blank" rel="noopener">robonuggets/be-ambitious</a>.</p>
+
+        <div class="panel-rule">The three types</div>
+        <div class="ba-cards">
+          <div class="ba-card"><h4>⛰️ Altitude</h4><p>Stop fixing single crashes; keep the apps crash-free. Ask: <i>what do you want to happen next?</i> Build a 3-rung ladder: understand → decide → replace the ritual.</p></div>
+          <div class="ba-card"><h4>🔬 Depth</h4><p>Use the raw data and real instruments the top experts use, set an "unreasonable" goal and treat it as reasonable, adversarially test what everyone believes — and always install an <b>outside judge</b>.</p></div>
+          <div class="ba-card"><h4>🎭 Range</h4><p>A QBR isn't "a deck", it's "getting busy people to believe a story in 30 minutes". Verbs reveal the crew: analyst, journalist, short seller. <b>Do</b> what they do — don't <b>talk</b> like them.</p></div>
+        </div>
+
+        <div class="panel-rule">Ambition Multiplier</div>
+        <div class="input-group">
+          <label for="ba-prompt">Your prompt (the small, comfortable version)</label>
+          <textarea id="ba-prompt" placeholder="e.g. Fix the crash in the login screen&#10;e.g. Make a deck for the quarterly review&#10;e.g. Summarize why signups dropped"></textarea>
+        </div>
+        <div class="ba-row">
+          <label class="ba-check"><input type="checkbox" id="ba-altitude" checked> Altitude</label>
+          <label class="ba-check"><input type="checkbox" id="ba-depth" checked> Depth</label>
+          <label class="ba-check"><input type="checkbox" id="ba-range"> Range</label>
+          <select id="ba-model" class="ba-select"></select>
+          <button id="ba-go" class="btn-primary">Multiply ambition 🚀</button>
+        </div>
+
+        <div id="ba-output" class="ba-output" hidden>
+          <div class="panel-rule">Goal beyond the goal</div>
+          <p id="ba-goal" class="ba-goal"></p>
+          <div class="panel-rule">Plan</div>
+          <pre id="ba-plan" class="ba-pre"></pre>
+          <div class="panel-rule">The ambitious prompt</div>
+          <pre id="ba-rewritten" class="ba-pre ba-copy" title="Click to copy"></pre>
+          <div class="panel-rule">Outside judge</div>
+          <p id="ba-judge" class="ba-goal"></p>
+          <div class="panel-rule">Download</div>
+          <div class="ba-row">
+            <button id="ba-dl-skill" class="btn-secondary">⬇︎ be-ambitious SKILL.md (improved v2)</button>
+          </div>
+        </div>
+        <p id="ba-status" class="ba-status" hidden></p>
+      </div>
+
+      <div class="panel">
+        <div class="section-head"><h2 style="font-size:1.05rem">Agent skill library — downloadable</h2></div>
+        <p class="section-desc">Every generator in this app has a matching, tested SKILL.md you can drop into any agent (Claude Code, Codex CLI, Cursor, Hermes). Generated with the skill-creator format: frontmatter, triggers, steps, pitfalls — each one executed and verified against the live Venice API before publishing.</p>
+        <div id="skill-library" class="ba-cards"></div>
+      </div>
+
+    </section>

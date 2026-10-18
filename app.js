@@ -73,7 +73,8 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('Fetching Venice models...');
             // Ask for the text catalogue specifically; the unfiltered list also
             // carries image, audio and embedding models that cannot answer a chat.
-            const response = await fetch('/api/models?type=text');
+            const userKey = (window.getVeniceKey && window.getVeniceKey()) || '';
+            const response = await fetch('/api/models?type=text', { headers: userKey ? { 'x-venice-key': userKey } : {} });
 
             if (!response.ok) {
                 throw new Error(`Failed to fetch models: ${response.status}`);
@@ -236,9 +237,11 @@ document.addEventListener('DOMContentLoaded', () => {
     async function callApi(endpoint, body, opts) {
         let response;
         try {
+            const userKey = (window.getVeniceKey && window.getVeniceKey()) || '';
             response = await fetch(endpoint, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: Object.assign({ 'Content-Type': 'application/json' },
+                    userKey ? { 'x-venice-key': userKey } : {}),
                 body: JSON.stringify(body)
             });
         } catch (error) {

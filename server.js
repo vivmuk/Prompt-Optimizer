@@ -12,8 +12,8 @@ app.use(express.json({ limit: '10mb' })); // Increased limit for skill packages
 app.use(express.static(path.join(__dirname, '.')));
 
 // --- HELPER: Get and Sanitize API Key ---
-function getVeniceKey() {
-    let apiKey = process.env.VENICE_API_KEY;
+function getVeniceKey(req) {
+    let apiKey = (req && (req.headers['x-venice-key'] || req.headers['X-Venice-Key'])) || process.env.VENICE_API_KEY;
     if (!apiKey) return null;
 
     // Remove ALL quotes (single or double) from anywhere in the string
@@ -26,7 +26,7 @@ function getVeniceKey() {
 
 // 1. Debug Endpoint (Safe)
 app.get('/api/health', (req, res) => {
-    const key = getVeniceKey();
+    const key = getVeniceKey(req);
     res.json({
         status: 'ok',
         env_check: {
@@ -40,7 +40,7 @@ app.get('/api/health', (req, res) => {
 // 2. Chat Completions Proxy
 app.post('/api/chat', async (req, res) => {
     try {
-        const apiKey = getVeniceKey();
+        const apiKey = getVeniceKey(req);
         if (!apiKey) {
             console.error('[SERVER] Msg: Missing API Key');
             return res.status(500).json({ error: 'Configuration Error: VENICE_API_KEY missing on server.' });
@@ -114,7 +114,7 @@ app.post('/api/chat', async (req, res) => {
 // 3. Models Proxy
 app.get('/api/models', async (req, res) => {
     try {
-        const apiKey = getVeniceKey();
+        const apiKey = getVeniceKey(req);
         if (!apiKey) {
             return res.status(500).json({ error: 'Configuration Error: VENICE_API_KEY missing on server.' });
         }
@@ -147,7 +147,7 @@ app.get('/api/models', async (req, res) => {
 // 4. Image Generation Proxy (Venice /image/generate)
 app.post('/api/image', async (req, res) => {
     try {
-        const apiKey = getVeniceKey();
+        const apiKey = getVeniceKey(req);
         if (!apiKey) {
             return res.status(500).json({ error: 'Configuration Error: VENICE_API_KEY missing on server.' });
         }
@@ -284,5 +284,5 @@ app.get('*', (req, res) => {
 
 app.listen(PORT, () => {
     console.log(`Server running at http://localhost:${PORT}`);
-    console.log(`Environment Check: VENICE_API_KEY is ${getVeniceKey() ? 'SET' : 'MISSING'}`);
+    console.log(`Environment Check: VENICE_API_KEY is ${getVeniceKey(req) ? 'SET' : 'MISSING'}`);
 });
