@@ -1,6 +1,7 @@
 /* ══════════════════════════════════════════════════════════════════════════
    ba.js — "Be Ambitious Prompting" tab.
-   Depends on app.js globals: callApi, apiFailed, showToast, loadModelsToSelect.
+   Self-contained API layer (app.js helpers live inside its closure and are
+   unreachable); falls back to app.js showToast if present.
    All engine prompts derive from Felix Rieseberg's article (13 Oct 2026)
    and the RoboNuggets be-ambitious skill (MIT).
    ══════════════════════════════════════════════════════════════════════════ */
@@ -14,6 +15,43 @@ document.addEventListener('DOMContentLoaded', () => {
   const modelSel = el('ba-model');
   const dlBtn = el('ba-dl-skill');
   if (!goBtn) return;
+
+  /* ── self-contained API + toast layer ── */
+  function baToast(msg) {
+    if (typeof showToast === 'function') { try { showToast(msg); return; } catch (e) {} }
+    statusP.textContent = msg;
+    statusP.hidden = false;
+  }
+
+  async function baCall(endpoint, body) {
+    const userKey = (window.getVeniceKey && window.getVeniceKey()) || '';
+    let response;
+    try {
+      response = await fetch(endpoint, {
+        method: 'POST',
+        headers: Object.assign({ 'Content-Type': 'application/json' },
+          userKey ? { 'x-venice-key': userKey } : {}),
+        body: JSON.stringify(body)
+      });
+    } catch (error) {
+      return { __error: 'Cannot reach the server.', __status: 0 };
+    }
+    const ctype = response.headers.get('content-type') || '';
+    if (!ctype.includes('application/json')) {
+      return { __error: 'Server returned a non-JSON response (deploy may be stale).', __status: response.status };
+    }
+    let data;
+    try { data = await response.json(); }
+    catch (e) { return { __error: 'Invalid JSON from server.', __status: response.status }; }
+    if (!response.ok) {
+      return { __error: (data && data.error) || ('Server error ' + response.status), __status: response.status };
+    }
+    return data;
+  }
+
+  function baFailed(r) {
+    return !r || !!r.__error || !r.choices || !r.choices[0];
+  }
 
   /* ── model dropdown: mirror the app's loaded text models, fall back quietly ── */
   function fillModels() {
@@ -114,9 +152,9 @@ document.addEventListener('DOMContentLoaded', () => {
   /* ── run ── */
   async function run() {
     const task = (promptBox.value || '').trim();
-    if (!task) { showToast('Type the prompt you want to make more ambitious.'); return; }
+    if (!task) { baToast('Type the prompt you want to make more ambitious.'); return; }
     const types = ['altitude', 'depth', 'range'].filter((t) => el(`ba-${t}`) && el(`ba-${t}`).checked);
-    if (!types.length) { showToast('Select at least one ambition type.'); return; }
+    if (!types.length) { baToast('Select at least one ambition type.'); return; }
 
     goBtn.disabled = true;
     statusP.hidden = false;
@@ -136,7 +174,7 @@ document.addEventListener('DOMContentLoaded', () => {
       max_tokens: 3000
     };
 
-    let resp = await callApi(endpoint, body);
+    let resp = await baCall(endpoint, body);
     // Reasoning-mode models can burn the entire token budget on thinking and
     // return empty content with finish_reason 'length'. Detect and retry once
     // with double budget before giving up.
@@ -145,10 +183,10 @@ document.addEventListener('DOMContentLoaded', () => {
       ((r.choices[0].message && r.choices[0].message.content) || '').trim().length < 40;
     if (emptyThinking(resp)) {
       statusP.textContent = 'Model spent its budget thinking; retrying with double…';
-      resp = await callApi(endpoint, Object.assign({}, body, { max_tokens: (body.max_tokens || 3000) * 2 }));
+      resp = await baCall(endpoint, Object.assign({}, body, { max_tokens: (body.max_tokens || 3000) * 2 }));
     }
     goBtn.disabled = false;
-    if (apiFailed(resp)) {
+    if (baFailed(resp)) {
       statusP.textContent = resp && resp.__error ? resp.__error : 'The model returned no usable output. Try again or pick another model.';
       return;
     }
@@ -159,8 +197,8 @@ document.addEventListener('DOMContentLoaded', () => {
       statusP.textContent = 'The model did not return a rewritten prompt. Retrying once with a stricter format request…';
       body.messages.push({ role: 'assistant', content: text });
       body.messages.push({ role: 'user', content: 'You omitted the <<<PROMPT>>>…<<<END>>> block. Regenerate the full six-section output with the rewritten prompt inside <<<PROMPT>>> and <<<END>>> markers. Output nothing else.' });
-      const resp2 = await callApi(endpoint, body);
-      if (apiFailed(resp2)) {
+      const resp2 = await baCall(endpoint, body);
+      if (baFailed(resp2)) {
         statusP.textContent = 'Retry failed. Try another model.';
         return;
       }
@@ -178,12 +216,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     el('ba-rewritten').onclick = () => {
       navigator.clipboard.writeText(out.rewritten).then(
-        () => showToast('Ambitious prompt copied.'),
+        () => baToast('Ambitious prompt copied.'),
         () => showToast('Copy failed — select the text manually.')
       );
     };
   }
-  goBtn.addEventListener('click', run);
+  goBtn.addEventListener('click', () => {
+    run().catch((e) => {
+      goBtn.disabled = false;
+      statusP.hidden = false;
+      statusP.textContent = 'Engine error: ' + (e && e.message ? e.message : e);
+    });
+  });
   promptBox.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') run();
   });
