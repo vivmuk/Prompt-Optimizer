@@ -236,8 +236,8 @@ document.addEventListener('DOMContentLoaded', () => {
   if (dlBtn) {
     dlBtn.addEventListener('click', () => {
       const a = document.createElement('a');
-      a.href = 'skills/be-ambitious/SKILL.md';
-      a.download = 'be-ambitious-SKILL.md';
+      a.href = 'skills/viv-be-ambitious/SKILL.md';
+      a.download = 'viv-be-ambitious.md';
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -245,7 +245,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   /* ── skill library cards (one per tab) ── */
-  const LIB = [
+  const LIB = window.VIV_SKILLS = [
     { id: 'be-ambitious', title: 'Be Ambitious', desc: 'Altitude/Depth/Range multiplies any prompt or task. v2 improved edition: pre-flight checklist, fallback judge ladder, JSON mode.' },
     { id: 'prompt-optimizer', title: 'Prompt Optimizer', desc: 'Turns a rough draft into an engineered prompt: role, context, constraints, output contract and self-check.' },
     { id: 'model-tuner', title: 'Model Tuner', desc: 'Pick the right model per task and rewrite the prompt the way that model reads best.' },
@@ -280,7 +280,7 @@ document.addEventListener('DOMContentLoaded', () => {
     'agent-rules': 'Package', 'plugin-builder': 'Package', 'loop-design': 'Loops',
     'content-loop': 'Loops', 'gauntlet-loop': 'Loops'
   };
-  grid.innerHTML = LIB.map((s) => `
+  grid.innerHTML = (window.VIV_SKILLS || []).map((s) => `
     <div class="vault-card">
       <h4>${s.title}</h4>
       <p>${s.desc}</p>
@@ -303,7 +303,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
       }
       const zip = new window.JSZip();
-      const results = await Promise.all(LIB.map(async (s) => {
+      const results = await Promise.all((window.VIV_SKILLS || []).map(async (s) => {
         const r = await fetch(`skills/viv-${s.id}/SKILL.md`);
         if (!r.ok) throw new Error(`viv-${s.id}: ${r.status}`);
         zip.file(`viv-${s.id}/SKILL.md`, await r.text());
