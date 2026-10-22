@@ -284,5 +284,7 @@ app.get('*', (req, res) => {
 
 app.listen(PORT, () => {
     console.log(`Server running at http://localhost:${PORT}`);
-    console.log(`Environment Check: VENICE_API_KEY is ${getVeniceKey(req) ? 'SET' : 'MISSING'}`);
+    // No request at startup, so only the server's own key can be checked here.
+    // Visitors can still bring their own via the x-venice-key header.
+    console.log(`Environment Check: VENICE_API_KEY is ${getVeniceKey() ? 'SET' : 'MISSING (visitors must bring their own key)'}`);
 });
