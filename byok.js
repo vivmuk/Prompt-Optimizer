@@ -37,6 +37,47 @@
     document.getElementById('byok-modal').style.display = 'none';
   };
 
+  /* Attach the visitor's key to every call to this site's own /api/ proxy.
+     The deployed proxy rejects any request without it, and individual tabs
+     used to add the header themselves — the ones that didn't failed with
+     "No Venice API key" even after a key was saved. Doing it once here covers
+     every tab, current and future. A header a caller set explicitly wins. */
+  function isOwnApi(url) {
+    try {
+      var u = new URL(url, window.location.href);
+      return u.origin === window.location.origin && u.pathname.indexOf('/api/') === 0;
+    } catch (e) { return false; }
+  }
+
+  /* Generation calls need a key; background lookups (models, health) are
+     allowed to fail quietly, so only these prompt for one. */
+  function needsKeyPrompt(url) {
+    try { return /^\/api\/(chat|image)\b/.test(new URL(url, window.location.href).pathname); }
+    catch (e) { return false; }
+  }
+
+  if (typeof window.fetch === 'function') {
+    var baseFetch = window.fetch;
+    window.fetch = function (input, init) {
+      var url = typeof input === 'string' ? input : (input && input.url) || '';
+      if (!isOwnApi(url)) return baseFetch.call(this, input, init);
+
+      var key = window.getVeniceKey();
+      if (!key) {
+        if (needsKeyPrompt(url)) {
+          window.openKeyModal('This needs a Venice API key. Add yours to continue.');
+        }
+        return baseFetch.call(this, input, init);
+      }
+
+      var opts = Object.assign({}, init || {});
+      var headers = new Headers(opts.headers || (input && typeof input !== 'string' ? input.headers : undefined) || {});
+      if (!headers.has('x-venice-key')) headers.set('x-venice-key', key);
+      opts.headers = headers;
+      return baseFetch.call(this, input, opts);
+    };
+  }
+
   function refreshBadge() {
     var b = document.getElementById('byok-dot');
     if (b) {
@@ -83,7 +124,7 @@
     m.innerHTML =
       '<div id="byok-card">' +
         '<h3>🔑 Your Venice API key</h3>' +
-        '<p>Stored only in this browser (localStorage). Sent directly from your browser to api.venice.ai — never to this site\'s server.</p>' +
+        '<p>Stored only in this browser (localStorage). Each request passes it through this site\'s proxy to api.venice.ai; the proxy does not store it.</p>' +
         '<div id="byok-reason"></div>' +
         '<input id="byok-input" type="password" placeholder="paste your key" autocomplete="off" spellcheck="false">' +
         '<div id="byok-row">' +
