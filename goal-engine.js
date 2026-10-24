@@ -182,7 +182,9 @@ ${context ? `CONTEXT THE OPERATOR ALREADY HAS\n"""\n${clean(context)}\n"""\n\n` 
 
   function normalize(raw, meta) {
     const source = raw || {};
-    const goalRaw = source.goal && typeof source.goal === 'object' ? source.goal : {};
+    const goalRaw = source.goal && typeof source.goal === 'object'
+      ? source.goal
+      : { statement: clean(source.goal) };
     const agentRaw = source.agent && typeof source.agent === 'object' ? source.agent : {};
     const sanskrit = !(meta && meta.sanskrit === false);
 
