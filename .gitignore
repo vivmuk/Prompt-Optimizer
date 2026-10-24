@@ -22,3 +22,5 @@ Thumbs.db
 # Logs
 logs
 *.log 
+# Local review screenshots
+.shot-*.png

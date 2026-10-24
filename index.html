@@ -51,6 +51,17 @@
           </span>
         </button>
 
+        <button class="tab-btn" data-tab="goal-engineering">
+          <span class="tab-glyph">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1" fill="currentColor"/><path d="M12 1.5v3M12 19.5v3M1.5 12h3M19.5 12h3"/></svg>
+          </span>
+          <span class="tab-copy">
+            <span class="tab-label">Goal Engineering</span>
+            <span class="tab-hint">Outcome · evidence · evals</span>
+          </span>
+          <span class="tab-badge">New</span>
+        </button>
+
         <button class="tab-btn" data-tab="model-tuner">
           <span class="tab-glyph">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4v16M12 4v16M19 4v16"/><circle cx="5" cy="9" r="2.1" fill="currentColor"/><circle cx="12" cy="15" r="2.1" fill="currentColor"/><circle cx="19" cy="7" r="2.1" fill="currentColor"/></svg>
@@ -231,7 +242,7 @@
         <div class="input-group">
           <label for="model-select">Compiler model</label>
           <select id="model-select">
-            <option value="deepseek-r1-671b-thinking">DeepSeek R1 671B</option>
+            <option value="deepseek-v4-1-flash-1017">DeepSeek v4.1 Flash</option>
             <option value="zai-org-glm-4.7">GLM 4.7</option>
             <option value="gemini-3-pro-preview">Gemini 3 Pro</option>
             <option value="qwen3-235b-a22b-thinking-2507">Qwen 3 235B</option>
@@ -243,6 +254,10 @@
           <button class="action-btn" id="optimize-btn">Transform</button>
           <span class="inline-status" id="optimizer-inline-status"><span id="optimizer-progress">0%</span></span>
         </div>
+        <label class="ge-toggle" for="optimizer-goal-toggle">
+          <input type="checkbox" id="optimizer-goal-toggle" checked>
+          <span><strong>Engineer the goal first</strong><em>Outcome, evidence, non-goals and a rubric — then transform.</em></span>
+        </label>
       </div>
 
       <div class="stage">
@@ -264,11 +279,12 @@
 
           <div id="optimizer-loader" style="display:none;text-align:center;padding:20px;">
             <div class="loader"></div>
-            <p class="thinking" style="margin-top:10px;">Optimizing…</p>
+            <p class="thinking" id="optimizer-loader-text" style="margin-top:10px;">Optimizing…</p>
           </div>
 
           <div id="optimizer-result" class="result-area" style="display:none;">
             <button class="copy-btn" onclick="copyToClipboard('optimized-output', this)">Copy</button>
+            <div id="optimizer-goal-panel" class="ge-inline-panel" style="display:none;"></div>
             <h3>Optimized Result</h3>
             <div id="optimized-output" contenteditable="true"></div>
 
@@ -290,6 +306,92 @@
               </div>
             </div>
             <div id="generated-answer" style="display:none;"></div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ── 1a · GOAL ENGINEERING ────────────────────────────────────────── -->
+    <section id="goal-engineering" class="section">
+
+      <div class="panel">
+        <div class="section-head">
+          <svg class="motif" viewBox="0 0 44 44" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <rect width="44" height="44" fill="#16272B"/>
+            <circle cx="22" cy="22" r="13" fill="none" stroke="#2F5057" stroke-width="2"/>
+            <circle cx="22" cy="22" r="6.5" fill="none" stroke="#E4622B" stroke-width="2.4"/>
+            <circle cx="22" cy="22" r="2" fill="#F0A93C"/>
+            <path d="M22 4v5M22 35v5M4 22h5M35 22h5" stroke="#A6B2AF" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+          <h2>Engineer the Goal</h2>
+        </div>
+        <p class="section-desc">A goal is not a wish. Turn a rough intention into an observable outcome, the evidence that would prove it, the work it deliberately excludes, and a rubric that can fail the result — before anything is optimized or harnessed.</p>
+
+        <div class="panel-rule">Intention</div>
+        <div class="input-group">
+          <label for="ge-goal">What are you trying to make true?</label>
+          <textarea id="ge-goal" style="min-height:150px;" placeholder="e.g. New engineers can ship a small production change in their first week without asking anyone for access."></textarea>
+        </div>
+
+        <div class="input-group">
+          <label for="ge-context">Context the operator already has <span class="ge-optional">optional</span></label>
+          <textarea id="ge-context" style="min-height:84px;" placeholder="Team, tools, deadline, prior attempts, hard limits — anything that changes what a good answer looks like."></textarea>
+        </div>
+
+        <div class="panel-rule">Model &amp; identity</div>
+        <div class="input-group">
+          <label for="ge-model">Goal model</label>
+          <select id="ge-model">
+            <option value="deepseek-v4-1-flash-1017">DeepSeek v4.1 Flash</option>
+            <option value="zai-org-glm-4.7">GLM 4.7</option>
+            <option value="gemini-3-pro-preview">Gemini 3 Pro</option>
+          </select>
+        </div>
+
+        <label class="ge-toggle" for="ge-sanskrit">
+          <input type="checkbox" id="ge-sanskrit" checked>
+          <span><strong>Sanskrit operator name</strong><em>A name, meaning and role for the agent that owns this goal. Turn it off for a plain role label.</em></span>
+        </label>
+
+        <div class="toolbar">
+          <button class="action-btn" id="ge-run-btn">Engineer the goal</button>
+          <span class="inline-status" id="ge-inline-status" style="display:none;"><span id="ge-progress">0%</span></span>
+        </div>
+      </div>
+
+      <div class="stage">
+        <div class="stage-head">
+          <span class="stage-title">Goal dossier</span>
+          <span class="stage-pulse" data-pulse-for="goal-engineering"><span class="dot"></span><span class="pulse-text">Idle</span></span>
+        </div>
+        <div class="stage-body">
+
+          <div class="stage-empty" data-empty-for="goal-engineering">
+            <svg viewBox="0 0 120 120" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">
+              <circle cx="60" cy="60" r="38" stroke="#2F5057" stroke-width="1.6"/>
+              <circle cx="60" cy="60" r="20" stroke="#E4622B" stroke-width="2"/>
+              <circle cx="60" cy="60" r="5" fill="#F0A93C"/>
+              <path d="M60 12v14M60 94v14M12 60h14M94 60h14" stroke-linecap="round"/>
+            </svg>
+            <h4>No goal engineered yet</h4>
+            <p>Write the intention on the left. The outcome, evidence, exclusions, assumptions, constraints and rubric will appear here as one charter.</p>
+          </div>
+
+          <div id="ge-loader" style="display:none;text-align:center;padding:20px;">
+            <div class="loader"></div>
+            <p class="thinking" id="ge-loader-text" style="margin-top:10px;">Engineering the goal…</p>
+          </div>
+
+          <div id="ge-result" class="result-area" style="display:none;">
+            <div class="ge-result-actions">
+              <button class="action-btn secondary" id="ge-copy-btn">Copy charter</button>
+              <button class="action-btn secondary" id="ge-download-md">Markdown</button>
+              <button class="action-btn secondary" id="ge-download-json">JSON</button>
+              <button class="action-btn secondary" id="ge-to-optimizer">Send to Optimizer</button>
+              <button class="action-btn secondary" id="ge-to-harness">Send to Harness Builder</button>
+            </div>
+            <div id="ge-output"></div>
           </div>
 
         </div>
@@ -397,7 +499,7 @@
         <div class="input-group">
           <label for="agent-model-select">Builder model</label>
           <select id="agent-model-select">
-            <option value="deepseek-r1-671b-thinking">DeepSeek R1 671B</option>
+            <option value="deepseek-v4-1-flash-1017">DeepSeek v4.1 Flash</option>
             <option value="zai-org-glm-4.7">GLM 4.7</option>
             <option value="gemini-3-pro-preview">Gemini 3 Pro</option>
             <option value="qwen3-235b-a22b-thinking-2507">Qwen 3 235B</option>
@@ -539,6 +641,10 @@
           <button class="action-btn secondary" id="hb-stop-btn" style="display:none;">Stop</button>
           <span class="inline-status" id="hb-inline-status" style="display:none;"><span id="hb-progress">0%</span></span>
         </div>
+        <label class="ge-toggle" for="hb-goal-toggle">
+          <input type="checkbox" id="hb-goal-toggle" checked>
+          <span><strong>Engineer the goal first</strong><em>Turn the use case into evidence, non-goals and a scored rubric before the harness is written.</em></span>
+        </label>
       </div>
 
       <div class="stage">
@@ -572,6 +678,8 @@
               <div class="metric-row" id="hb-metrics"></div>
               <div class="prose" id="hb-summary" style="margin-top:20px;"></div>
             </div>
+
+            <div class="result-area" id="hb-goal-panel" style="display:none;margin-top:24px;"></div>
 
             <div id="hb-result" style="display:none;margin-top:24px;">
               <div class="skill-file-tabs" id="hb-out-tabs">
@@ -865,7 +973,7 @@
         <div class="input-group">
           <label for="plugin-model-select">Architect model</label>
           <select id="plugin-model-select">
-            <option value="deepseek-r1-671b-thinking">DeepSeek R1 671B</option>
+            <option value="deepseek-v4-1-flash-1017">DeepSeek v4.1 Flash</option>
             <option value="zai-org-glm-4.7">GLM 4.7</option>
             <option value="gemini-3-pro-preview">Gemini 3 Pro</option>
             <option value="qwen3-235b-a22b-thinking-2507">Qwen 3 235B</option>
@@ -964,7 +1072,7 @@
         <div class="input-group">
           <label for="loop-model-select">Compiler model</label>
           <select id="loop-model-select">
-            <option value="deepseek-r1-671b-thinking">DeepSeek R1 671B</option>
+            <option value="deepseek-v4-1-flash-1017">DeepSeek v4.1 Flash</option>
             <option value="zai-org-glm-4.7">GLM 4.7</option>
             <option value="gemini-3-pro-preview">Gemini 3 Pro</option>
             <option value="qwen3-235b-a22b-thinking-2507">Qwen 3 235B</option>
@@ -1418,6 +1526,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
 <script src="json-rescue.js"></script>
+<script src="goal-engine.js"></script>
 <script src="meter.js"></script>
 <script src="byok.js"></script>
 <script src="app.js"></script>

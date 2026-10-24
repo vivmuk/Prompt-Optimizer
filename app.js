@@ -23,6 +23,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const answerModelSelect = document.getElementById('answer-model-select'); // NEW
     const generatedAnswer = document.getElementById('generated-answer');
     const optimizerInlineStatus = document.getElementById('optimizer-inline-status'); // NEW
+    const optimizerGoalToggle = document.getElementById('optimizer-goal-toggle');
+    const optimizerGoalPanel = document.getElementById('optimizer-goal-panel');
+    const optimizerLoaderText = document.getElementById('optimizer-loader-text');
 
     // Agent Builder
 
@@ -103,7 +106,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Fallback to default models
             loadedModels = [
-                { id: 'deepseek-r1-671b-thinking', name: 'DeepSeek R1 671B' },
+                { id: 'deepseek-v4-1-flash-1017', name: 'DeepSeek v4.1 Flash' },
                 { id: 'zai-org-glm-4.7', name: 'GLM 4.7' },
                 { id: 'gemini-3-pro-preview', name: 'Gemini 3 Pro Preview' },
                 { id: 'qwen3-4b', name: 'Qwen 3 4B' },
@@ -147,6 +150,15 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         console.log('Model dropdowns populated with latest models');
+
+        /* The catalogue's first entry is not a sensible default. Prefer the
+           model this workbench is tuned for when Venice still serves it. */
+        const preferred = 'deepseek-v4-1-flash-1017';
+        [modelSelect, agentModelSelect, answerModelSelect].forEach(sel => {
+            if (sel && Array.from(sel.options).some(o => o.value === preferred)) {
+                sel.value = preferred;
+            }
+        });
     }
 
     // --- TAB SWITCHING ---
@@ -319,6 +331,35 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }, 200);
 
+        /* Goal engineering runs before the transform. It is a separate call so
+           the Optimizer can show what "done" means and then write a prompt that
+           actually targets it — rather than optimizing a vague draft harder. */
+        let goalSpec = null;
+        if (optimizerGoalToggle && optimizerGoalToggle.checked) {
+            if (!window.GoalEngine) {
+                clearInterval(interval);
+                optimizerLoader.style.display = 'none';
+                optimizerInlineStatus.style.display = 'none';
+                optimizeBtn.disabled = false;
+                return showToast('Goal engineering failed to load. Reload the page.');
+            }
+            try {
+                if (optimizerLoaderText) optimizerLoaderText.textContent = 'Engineering the goal…';
+                goalSpec = await window.GoalEngine.engineerCached({
+                    goal: prompt,
+                    context: '',
+                    sanskrit: true
+                });
+                if (optimizerLoaderText) optimizerLoaderText.textContent = 'Optimizing the prompt…';
+            } catch (err) {
+                clearInterval(interval);
+                optimizerLoader.style.display = 'none';
+                optimizerInlineStatus.style.display = 'none';
+                optimizeBtn.disabled = false;
+                return showToast('Goal engineering failed: ' + err.message);
+            }
+        }
+
         // --- ADVANCED PROMPT ENGINEERING SYSTEM ---
         // Build a comprehensive system prompt using modern techniques:
         // CO-STAR (Context, Objective, Style, Tone, Audience, Response)
@@ -427,8 +468,21 @@ Additional universal techniques:
 
 **CRITICAL OUTPUT RULE**: Return ONLY the fully optimized, ready-to-use prompt. Do NOT include explanations, meta-commentary, headings like "Optimized Prompt:", or any wrapper text. The entire response should be the prompt itself — nothing before it, nothing after it.`;
 
+        if (goalSpec) {
+            systemPrompt = systemPrompt.replace(/\n\n\*\*CRITICAL OUTPUT RULE\*\*/,
+                `
+
+**GOAL DISCIPLINE** — This prompt was engineered before you touched it. Treat the charter's outcome, success evidence, non-goals, assumptions and constraints as the source of truth. The prompt you write must make the outcome and the evidence checkable, name the exclusions that prevent goal creep, and surface any assumption the executor must verify. Do not invent facts the charter does not contain; list open questions instead.
+
+**CRITICAL OUTPUT RULE**`);
+        }
+
         // Build a richer user message with context
-        const userMessage = `Transform the following rough input into an excellent, production-ready prompt using all the techniques in your instructions.
+        const goalBlock = goalSpec
+            ? `ENGINEERED GOAL (source of truth)\n${window.GoalEngine.forPrompt(goalSpec)}\n\n`
+            : '';
+
+        const userMessage = `${goalBlock}Transform the following rough input into an excellent, production-ready prompt using all the techniques in your instructions. The engineered goal above defines what success means — the prompt must aim at that, not merely improve the wording.
 
 Raw user input:
 """
@@ -463,8 +517,14 @@ Remember: Return ONLY the optimized prompt itself — no preamble, no explanatio
                 optimizerApiReported = apiFailed(response);
                 if (response && response.choices) {
                     optimizedOutput.innerText = response.choices[0].message.content;
+                    if (goalSpec && optimizerGoalPanel) {
+                        optimizerGoalPanel.innerHTML = window.GoalEngine.compact(goalSpec);
+                        optimizerGoalPanel.style.display = 'block';
+                    } else if (optimizerGoalPanel) {
+                        optimizerGoalPanel.style.display = 'none';
+                    }
                     optimizerResult.style.display = 'block';
-                    showToast('Prompt Optimized!');
+                    showToast(goalSpec ? 'Goal engineered and prompt optimized!' : 'Prompt Optimized!');
                     optimizerResult.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }
             }, 500);

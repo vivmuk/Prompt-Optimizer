@@ -417,7 +417,7 @@
   /* ── Model dropdowns for the new tabs ───────────────────────────────── */
 
   const FALLBACK_MODELS = [
-    { id: 'deepseek-r1-671b-thinking', name: 'DeepSeek R1 671B' },
+    { id: 'deepseek-v4-1-flash-1017', name: 'DeepSeek v4.1 Flash' },
     { id: 'zai-org-glm-4.7', name: 'GLM 4.7' },
     { id: 'gemini-3-pro-preview', name: 'Gemini 3 Pro' },
     { id: 'qwen3-235b-a22b-thinking-2507', name: 'Qwen 3 235B' },
@@ -496,9 +496,9 @@
 
     /* Every generator picks from the same live catalogue. */
     fillModels($('#cl-model'), textModels, 'zai-org-glm-4.7');
-    fillModels($('#gl-model'), textModels, 'deepseek-r1-671b-thinking');
+    fillModels($('#gl-model'), textModels, 'deepseek-v4-1-flash-1017');
     fillModels($('#ar-model'), textModels, 'zai-org-glm-4.7');
-    fillModels($('#hb-model'), textModels, 'deepseek-r1-671b-thinking');
+    fillModels($('#hb-model'), textModels, 'deepseek-v4-1-flash-1017');
     fillModels($('#anthropic-model-select'), textModels, 'zai-org-glm-4.7');
     fillModels($('#mt-model'), textModels, 'zai-org-glm-4.7');
 
@@ -1475,6 +1475,9 @@ Output strictly valid JSON with exactly one key, no code fences: {"<layerKey>": 
     if (!strip || !hbState) return;
     const present = HB_LAYERS.filter(l => hbState.recipe[l.key]);
     const extras = [];
+    if (hbState.goal) {
+      extras.push({ key: 'goal', label: 'Goal' }, { key: 'rubric', label: 'Evals' });
+    }
     if (hbState.recipe.mermaidDiagram) extras.push({ key: 'diagram', label: 'Diagram' });
     if (hbState.image) extras.push({ key: 'image', label: 'Illustration' });
     extras.push({ key: 'bundle', label: 'Bundle' });
@@ -1511,6 +1514,20 @@ Output strictly valid JSON with exactly one key, no code fences: {"<layerKey>": 
 
     if (view === 'json') {
       out.innerHTML = `<pre class="output-pre" style="padding:0;">${esc(JSON.stringify(hbExport(), null, 2))}</pre>`;
+      return;
+    }
+
+    if (view === 'goal') {
+      out.innerHTML = hbState.goal
+        ? window.GoalEngine.dossier(hbState.goal)
+        : '<p class="prose">No goal charter was engineered for this run.</p>';
+      return;
+    }
+
+    if (view === 'rubric') {
+      out.innerHTML = hbState.goal
+        ? `<div class="ge-dossier"><div class="ge-block"><div class="ge-label">Evaluation rubric <span class="ge-label-note">weights sum to 100%</span></div>${window.GoalEngine.rubricTable(hbState.goal)}</div></div>`
+        : '<p class="prose">No rubric was engineered for this run.</p>';
       return;
     }
 
@@ -1605,6 +1622,14 @@ Output strictly valid JSON with exactly one key, no code fences: {"<layerKey>": 
 
     if (recipe.mermaidDiagram) {
       files.push({ path: 'docs/architecture.mmd', content: recipe.mermaidDiagram, note: 'Architecture diagram (Mermaid source).' });
+    }
+
+    if (hbState.goal) {
+      files.unshift({
+        path: 'docs/goal-charter.md',
+        content: window.GoalEngine.toMarkdown(hbState.goal),
+        note: 'Engineered goal, success evidence, non-goals, constraints and rubric.'
+      });
     }
 
     return files;
@@ -1730,7 +1755,7 @@ Output strictly valid JSON with exactly one key, no code fences: {"<layerKey>": 
       st.key === 'image' && !inputs.image ? { weight: 0.05 } : {}));
     meterStart('harness-builder', steps);
 
-    hbState = { inputs: inputs, recipe: {}, streaming: {}, userPinned: false, image: null };
+    hbState = { inputs: inputs, recipe: {}, streaming: {}, userPinned: false, image: null, goal: null };
     hbRenderTabs();
 
     const autonomyBrief = {
@@ -1739,14 +1764,45 @@ Output strictly valid JSON with exactly one key, no code fences: {"<layerKey>": 
       autonomous: 'The operator wants the harness to run to completion unattended. That raises the bar on evals, permissions and rollback: say what makes unattended running safe here.'
     }[inputs.autonomy];
 
-    const brief =
-      `USE CASE\n${useCase}\n\n` +
-      (inputs.stack ? `TOOLS AND SERVICES IT MUST DRIVE\n${inputs.stack}\n\n` : '') +
-      `AUTONOMY\n${autonomyBrief}\n\n` +
-      `TARGET HARNESSES\n${inputs.targets.join(', ') || 'Claude Code'}\n\n` +
-      `Design the harness.`;
+    let goalSpec = null;
 
     try {
+      /* 0 — engineer the goal, if asked. This happens before the harness so
+         every rule and control layer can trace to evidence or a non-goal. */
+      if ($('#hb-goal-toggle') && $('#hb-goal-toggle').checked) {
+        if (!window.GoalEngine) throw new Error('Goal engineering failed to load. Reload the page.');
+        pulse('harness-builder', 'live', 'Engineering goal');
+        $('#hb-progress').textContent = 'Goal';
+        goalSpec = await window.GoalEngine.engineerCached({
+          goal: useCase,
+          context: inputs.stack,
+          sanskrit: true,
+          model: inputs.model
+        });
+        hbState.goal = goalSpec;
+        hbState.recipe.agent = goalSpec.agent;
+        hbState.recipe.goal = goalSpec.goal;
+        hbState.recipe.evalRubric = goalSpec.evals;
+        const panel = $('#hb-goal-panel');
+        if (panel) {
+          panel.innerHTML = window.GoalEngine.compact(goalSpec);
+          panel.style.display = 'block';
+        }
+        hbRenderTabs();
+        $('#hb-progress').textContent = 'Running';
+      } else {
+        const panel = $('#hb-goal-panel');
+        if (panel) panel.style.display = 'none';
+      }
+
+      const brief =
+        (goalSpec ? `ENGINEERED GOAL (source of truth)\n${window.GoalEngine.forPrompt(goalSpec)}\n\n` : '') +
+        `USE CASE\n${useCase}\n\n` +
+        (inputs.stack ? `TOOLS AND SERVICES IT MUST DRIVE\n${inputs.stack}\n\n` : '') +
+        `AUTONOMY\n${autonomyBrief}\n\n` +
+        `TARGET HARNESSES\n${inputs.targets.join(', ') || 'Claude Code'}\n\n` +
+        `Design the harness. Every rule, permission and eval must trace to the engineered goal's evidence, non-goals or constraints.`;
+
       /* 1 — operating layers */
       hbPipeline.set('core', 'active');
       meterStage('harness-builder', 'core');
@@ -1763,7 +1819,8 @@ Output strictly valid JSON with exactly one key, no code fences: {"<layerKey>": 
       const context = {};
       HB_CORE_FIELDS.forEach(f => { if (hbState.recipe[f]) context[f] = hbState.recipe[f]; });
       await chatStream(inputs.model, HB_CONTROLS_PROMPT,
-        `OPERATING LAYERS ALREADY WRITTEN\n${JSON.stringify(context)}\n\nAUTONOMY\n${autonomyBrief}\n\nWrite the control layers.`,
+        (goalSpec ? `ENGINEERED GOAL (source of truth)\n${window.GoalEngine.forPrompt(goalSpec)}\n\n` : '') +
+        `OPERATING LAYERS ALREADY WRITTEN\n${JSON.stringify(context)}\n\nAUTONOMY\n${autonomyBrief}\n\nWrite the control layers. Every permission, hook and eval must trace to the engineered goal.`,
         { max_tokens: 9000, response_format: { type: 'json_object' } },
         buf => hbAbsorb(buf, HB_CONTROL_FIELDS));
       hbState.streaming = {};

@@ -2,23 +2,55 @@
 
 A Venice.ai-powered orchestration workbench for prompts, agents, skills, plugins and autonomous loops.
 
-Ten workspaces live in the left rail. Pick one, fill in the control panel on the
+Thirteen workspaces live in the left rail. Pick one, fill in the control panel on the
 left, and watch the run assemble in the orchestration column on the right.
 
 ## The generators
 
 | Generator | What it produces |
 | --- | --- |
-| **Optimizer** | A rough draft becomes an engineered prompt, shaped for a specific provider dialect (Claude XML, Gemini PTCF, OpenAI Markdown, or universal). Answer it in place or hand it to another chatbot. |
+| **Optimizer** | A rough draft becomes an engineered prompt, shaped for a specific provider dialect (Claude XML, Gemini PTCF, OpenAI Markdown, or universal). **Engineer the goal first** is on by default: the draft is turned into an observable outcome, evidence, non-goals and a rubric before it is rewritten. Answer it in place or hand it to another chatbot. |
+| **Goal Engineering** | Turns a rough intention into a goal a stranger could audit: an observable outcome, success evidence, explicit non-goals, falsifiable assumptions, hard constraints, a weighted rubric that sums to 100%, and a named operator with operating rules and a gated playbook. Exports as Markdown/JSON and hands the charter to the Optimizer or Harness Builder. |
 | **Model Tuner** | Pick a provider, then a model, and learn how its maker says to prompt it: strengths and trade-offs, do's and don'ts, a before/after rewrite, the settings that matter, and the sources. Then turn a one-line idea into a prompt tuned to that model's guidance. |
 | **Agent Builder** | Name, description, system instructions and conversation starters for a custom agent. |
 | **Skills** | A portable `SKILL.md` package — SKILL.md, scripts, reference docs, folder tree — downloadable as a `.skill` archive. The Agent Skills standard is no longer Claude-only: Claude Code, Codex CLI, Cursor and Gemini CLI load the same folder. |
-| **Harness Builder** | A complete agent harness — rules, playbooks, subagents, skills, MCP wiring, hooks, permissions, execution layer, state schema, evals, context budget, anti-patterns and the QHX improvement loop. Streams layer by layer, refines any single layer in place, and downloads as a repo-shaped `.zip`. |
+| **Harness Builder** | A complete agent harness — rules, playbooks, subagents, skills, MCP wiring, hooks, permissions, execution layer, state schema, evals, context budget, anti-patterns and the QHX improvement loop. **Engineer the goal first** is on by default; the charter is passed into both writing passes and ships as `docs/goal-charter.md`. Streams layer by layer, refines any single layer in place, and downloads as a repo-shaped `.zip`. |
 | **Agent Rules** | The file every coding agent reads before touching a repo. Emits the AGENTS.md open standard plus any harness-native variant you ask for — CLAUDE.md, `.cursor/rules/*.mdc`, `.github/copilot-instructions.md`, GEMINI.md, `.windsurf/rules/`, CONVENTIONS.md — all derived from one spec. |
 | **Plugin Builder** | A Claude Code plugin design: commands, agents, skills, hooks and MCP servers, exported as build instructions any AI can scaffold from. |
 | **Loop Design** | A Loop Engineering spec — trigger, actions, proof, memory, stop conditions — pressure-tested by a second-pass Loop Critic. Exports as markdown, JSON or a Mermaid diagram. |
 | **Content Loop** | A repeatable content *engine*: pillars, a dated cycle calendar, channel-native drafts, Venice-generated key visuals, and the feedback loop that makes cycle two better than cycle one. |
 | **Gauntlet Loop** | A tool-creation gauntlet: parallel sub-agents that each own one dimension, an adversarial critic scoring against a named gold standard, a blind side-by-side comparison protocol, and a loop that will not exit until the critic picks your build. Outputs a runnable mega-prompt. |
+
+## Goal Engineering
+
+Most prompt tools start with the draft and make it more specific. This one asks
+what the draft usually skips: **what would make the outcome true, and how would
+a stranger know?**
+
+The Goal Engineering workspace produces one charter:
+
+- **Engineered goal** — a changed state in the world, not a task list.
+- **Success evidence** — artifacts, events or measurements a reviewer can check.
+- **Non-goals** — the adjacent work this goal deliberately excludes.
+- **Assumptions** — only the ones that could be wrong and would change the plan.
+- **Constraints** — non-negotiable limits on time, money, tools, permissions or quality.
+- **Evaluation rubric** — 4–6 weighted criteria, summing to exactly 100%, each with a pass condition and a measurement.
+- **Named operator** — an optional Sanskrit name, meaning and role, plus operating rules and a gated playbook.
+
+The same engine is wired into two existing generators. Both have an **Engineer
+the goal first** toggle, on by default:
+
+- **Optimizer** shows a collapsed charter above the optimized prompt and passes
+  the full charter into the rewrite, so the prompt targets the evidence and the
+  exclusions instead of just sounding more professional.
+- **Harness Builder** passes the charter into the operating-layer and
+  control-layer calls, exposes **Goal** and **Evals** tabs, and includes
+  `docs/goal-charter.md` in the downloaded repo bundle.
+
+Charters are cached in the browser by intention + context, so handing one from
+the Goal Engineering tab to the Optimizer or Harness Builder does not re-run
+the goal pass. The default goal model is **DeepSeek v4.1 Flash (1017)**; change
+it in the Goal Engineering panel when you want a different trade-off.
 
 ## Model Tuner
 
