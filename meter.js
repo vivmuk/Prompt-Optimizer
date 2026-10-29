@@ -144,7 +144,8 @@
     'loop-design':      { calls: 2, inTok: 4200, outTok: 5000 },
     'content-loop':     { calls: 3, inTok: 5200, outTok: 7000 },
     'gauntlet-loop':    { calls: 2, inTok: 3600, outTok: 6500 },
-    'model-tuner':      { calls: 1, inTok: 2600, outTok: 1600 }
+    'model-tuner':      { calls: 1, inTok: 2600, outTok: 1600 },
+    'claude-optimizer': { calls: 1, inTok: 900,  outTok: 700 }
   };
 
   /* Which model picker drives which tab's estimate, and whether the tab also
@@ -159,7 +160,8 @@
     'gauntlet-loop':    '#gl-model',
     'agent-rules':      '#ar-model',
     'harness-builder':  '#hb-model',
-    'model-tuner':      '#mt-model'
+    'model-tuner':      '#mt-model',
+    'claude-optimizer': '#co-model'
   };
 
   /* ── Cost ledger ────────────────────────────────────────────────────────
