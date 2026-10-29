@@ -2,7 +2,7 @@
 
 A Venice.ai-powered orchestration workbench for prompts, agents, skills, plugins and autonomous loops.
 
-Thirteen workspaces live in the left rail. Pick one, fill in the control panel on the
+Fourteen workspaces live in the left rail. Pick one, fill in the control panel on the
 left, and watch the run assemble in the orchestration column on the right.
 
 ## The generators
@@ -10,6 +10,7 @@ left, and watch the run assemble in the orchestration column on the right.
 | Generator | What it produces |
 | --- | --- |
 | **Optimizer** | A rough draft becomes an engineered prompt, shaped for a specific provider dialect (Claude XML, Gemini PTCF, OpenAI Markdown, or universal). **Engineer the goal first** is on by default: the draft is turned into an observable outcome, evidence, non-goals and a rubric before it is rewritten. Answer it in place or hand it to another chatbot. |
+| **Claude Prompt Optimizer** | A simple instruction becomes a prompt for current Claude models. Newer models already plan and check their work, so the rewrite is clearer and often shorter: a goal, focused context, a concrete done-check, and real constraints — without self-check boilerplate, ALL-CAPS emphasis, rigid scripts, stale few-shots, or manual thinking budgets. Shows the original beside the rewrite, with the practices applied and the anti-patterns found. |
 | **Goal Engineering** | Turns a rough intention into a goal a stranger could audit: an observable outcome, success evidence, explicit non-goals, falsifiable assumptions, hard constraints, a weighted rubric that sums to 100%, and a named operator with operating rules and a gated playbook. Exports as Markdown/JSON and hands the charter to the Optimizer or Harness Builder. |
 | **Model Tuner** | Pick a provider, then a model, and learn how its maker says to prompt it: strengths and trade-offs, do's and don'ts, a before/after rewrite, the settings that matter, and the sources. Then turn a one-line idea into a prompt tuned to that model's guidance. |
 | **Agent Builder** | Name, description, system instructions and conversation starters for a custom agent. |
@@ -237,7 +238,7 @@ Two differences on Netlify:
 
 Every generator picks from the **live Venice catalogue** — nothing is pinned in
 code. On load the app fetches `/api/models?type=text` and `?type=image` and
-fills all twelve pickers from the result, labelled with each model's published
+fills every model picker from the result, labelled with each model's published
 name rather than its slug, with `(beta)` marked. Models flagged `offline` are
 dropped: they appear in the catalogue but cannot serve a request, so listing
 them only buys a failed run.
@@ -322,6 +323,8 @@ generators.js     Harness Builder, Agent Rules, Content Loop, Gauntlet Loop, sha
 model-guides.js   Provider prompting guidance as data, with a source for every claim
 model-tuner.js    Model Tuner: guide, lineup, tuned prompt, Venice test-run
 model-tuner.css   Model Tuner components
+claude-optimizer.js  Claude Prompt Optimizer: rewrite, findings, reference
+claude-optimizer.css Claude Prompt Optimizer components
 server.js         Express server and the Venice proxy routes
 ```
 

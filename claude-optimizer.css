@@ -1,0 +1,182 @@
+/* Claude Prompt Optimizer — findings, length note, static reference.
+   Shares the workbench tokens and the Model Tuner before/after grid. */
+
+#claude-optimizer .stage-empty {
+  margin: 0 0 var(--s4);
+  max-width: 520px;
+  text-align: left;
+}
+#claude-optimizer .stage-empty svg { width: 56px; height: 56px; }
+
+.co-hint {
+  margin: var(--s2) 0 0;
+  font-size: 0.74rem;
+  color: var(--fog-400);
+  line-height: 1.5;
+}
+
+.co-delta {
+  margin: 0 0 var(--s4);
+  padding-right: 88px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  color: var(--fog-300);
+}
+
+.co-repair {
+  margin: var(--s4) 0 0;
+  padding: var(--s3) var(--s4);
+  border-left: 3px solid var(--saffron);
+  color: var(--fog-200);
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
+#co-result .mt-ba { margin-top: var(--s2); }
+#co-improved {
+  outline: none;
+  border-radius: var(--r-sm);
+}
+#co-improved:focus { background: var(--ink-850); }
+
+.co-findings {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s5);
+  margin-top: var(--s5);
+  padding-top: var(--s4);
+  border-top: 1px solid var(--line);
+}
+
+.co-col-label {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  margin-bottom: var(--s2);
+}
+.co-col-label.is-good { color: var(--jade); }
+.co-col-label.is-bad { color: #F5909C; }
+
+.co-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.co-item {
+  padding: var(--s3) 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+.co-item:last-child { border-bottom: 0; }
+.co-item p {
+  margin: 8px 0 0;
+  color: var(--fog-300);
+  font-size: 0.8rem;
+  line-height: 1.55;
+}
+.co-item-empty p { margin: 0; color: var(--fog-400); }
+
+.co-badge {
+  display: inline-block;
+  max-width: 100%;
+  padding: 3px 9px;
+  border-radius: 99px;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 500;
+  line-height: 1.45;
+  vertical-align: middle;
+}
+.co-badge.is-good {
+  color: var(--jade);
+  background: rgba(53, 185, 140, 0.13);
+  box-shadow: inset 0 0 0 1px rgba(53, 185, 140, 0.38);
+}
+.co-badge.is-bad {
+  color: #F5909C;
+  background: rgba(224, 82, 99, 0.14);
+  box-shadow: inset 0 0 0 1px rgba(224, 82, 99, 0.42);
+}
+
+.co-reference {
+  padding-top: var(--s2);
+}
+
+.co-ref-title {
+  font-size: 1.05rem;
+  letter-spacing: -0.02em;
+  margin-bottom: var(--s2);
+}
+
+.co-ref-lead {
+  color: var(--fog-300);
+  font-size: 0.84rem;
+  line-height: 1.6;
+  max-width: 68ch;
+  margin-bottom: var(--s4);
+}
+
+.co-example {
+  padding: var(--s4) 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+.co-example:last-child { border-bottom: 0; }
+
+.co-example-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2);
+  margin-bottom: var(--s2);
+}
+.co-example-head strong {
+  color: var(--fog-050);
+  font-size: 0.92rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.co-example > p {
+  margin: 0 0 var(--s3);
+  color: var(--fog-300);
+  font-size: 0.82rem;
+  line-height: 1.55;
+  max-width: 70ch;
+}
+
+.co-fail-lead {
+  color: var(--fog-200);
+  font-size: 0.88rem;
+  line-height: 1.6;
+  margin-bottom: var(--s4);
+}
+
+.co-fail details { margin-top: var(--s3); }
+.co-fail summary {
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fog-400);
+}
+.co-fail pre {
+  margin: var(--s3) 0 0;
+  max-height: 240px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1.6;
+  color: var(--fog-300);
+}
+
+@media (max-width: 860px) {
+  .co-findings { grid-template-columns: 1fr; gap: var(--s4); }
+  .co-delta { padding-right: 0; }
+}

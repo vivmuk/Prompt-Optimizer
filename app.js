@@ -126,6 +126,14 @@ document.addEventListener('DOMContentLoaded', () => {
         agentModelSelect.innerHTML = '';
         answerModelSelect.innerHTML = ''; // Clear new dropdown
 
+        // Tabs that ship their own picker (Claude Prompt Optimizer) share the
+        // same catalogue fill. Missing nodes are skipped so this stays safe
+        // if a section is not on the page.
+        const extraSelects = ['co-model']
+            .map(id => document.getElementById(id))
+            .filter(Boolean);
+        extraSelects.forEach(sel => { sel.innerHTML = ''; });
+
         // The readable name lives on model_spec; falling back to the id alone
         // leaves the dropdowns showing raw slugs.
         const labelFor = (model) =>
@@ -147,6 +155,13 @@ document.addEventListener('DOMContentLoaded', () => {
             optionForAnswer.value = model.id;
             optionForAnswer.textContent = labelFor(model);
             answerModelSelect.appendChild(optionForAnswer);
+
+            extraSelects.forEach(sel => {
+                const option = document.createElement('option');
+                option.value = model.id;
+                option.textContent = labelFor(model);
+                sel.appendChild(option);
+            });
         });
 
         console.log('Model dropdowns populated with latest models');
@@ -154,7 +169,7 @@ document.addEventListener('DOMContentLoaded', () => {
         /* The catalogue's first entry is not a sensible default. Prefer the
            model this workbench is tuned for when Venice still serves it. */
         const preferred = 'deepseek-v4-1-flash-1017';
-        [modelSelect, agentModelSelect, answerModelSelect].forEach(sel => {
+        [modelSelect, agentModelSelect, answerModelSelect].concat(extraSelects).forEach(sel => {
             if (sel && Array.from(sel.options).some(o => o.value === preferred)) {
                 sel.value = preferred;
             }
@@ -280,6 +295,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
         return payload;
     }
+
+    /* Newer tabs live outside this closure. They call the same proxy, the
+       same error copy, and the same JSON-mode retry through this handle
+       instead of growing a second client. */
+    window.VeniceClient = {
+        call: callApi,
+        callJson: callApiJsonMode,
+        toast: showToast
+    };
 
     window.copyToClipboard = (elementId, btn) => {
         const text = document.getElementById(elementId).innerText;
